@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  postgresql:
+    image: postgres:15-alpine
+    container_name: mp-office-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: mp_office_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mp_office_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: mp-office-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nextjs-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mp-office-app
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgresql:5432/mp_office_db
+      - REDIS_URL=redis://redis:6379
+      - BETTER_AUTH_SECRET=a_very_long_and_secure_random_string_here_32_chars
+      - BETTER_AUTH_URL=http://localhost:3000
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=BG8z6W78rPz5xM7... # Replace with actual VAPID key
+      - VAPID_PRIVATE_KEY=... # Replace with actual VAPID key
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_uploads:/app/uploads
+    restart: always
+
+  notification-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: mp-office-worker
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgresql:5432/mp_office_db
+      - REDIS_URL=redis://redis:6379
+      - VAPID_PRIVATE_KEY=...
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_uploads:/app/uploads
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    container_name: mp-office-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - app_uploads:/var/www/uploads:ro
+    depends_on:
+      - nextjs-app
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:
+  app_uploads:

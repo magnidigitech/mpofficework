@@ -1,0 +1,592 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean
+  image         String?
+  createdAt     DateTime
+  updatedAt     DateTime
+  sessions      Session[]
+  accounts      Account[]
+
+  // Custom fields & relations
+  mobileNumber               String?              @unique
+  designation                String?
+  department                 String?
+  employeeCode               String?              @unique
+  profileImage               String?
+  isActive                   Boolean              @default(true)
+  mustChangePassword         Boolean              @default(false)
+  lastLoginAt                DateTime?
+  createdById                String?
+  createdBy                  User?                @relation("StaffCreatedBy", fields: [createdById], references: [id])
+  createdStaff               User[]               @relation("StaffCreatedBy")
+  userRoles                  UserRole[]
+  assignments                ScheduleAssignment[]
+  checklistTemplates         ChecklistTemplate[]
+  assignedChecklistItems     VisitChecklistItem[] @relation("AssignedItems")
+  completedChecklistItems    VisitChecklistItem[] @relation("CompletedItems")
+  checklistMutations         ChecklistMutation[]
+  attachments                Attachment[]
+  subscriptions              PushSubscription[]
+  notifications              Notification[]
+  logs                       ActivityLog[]
+  approvedSocialMediaUpdates SocialMediaUpdate[]  @relation("ApprovedSocialMedia")
+  assignedSocialMediaUpdates SocialMediaUpdate[]  @relation("AssignedSocialMedia")
+  publishedSocialMediaPosts  SocialMediaPost[]    @relation("PublishedSocialMediaPosts")
+  updatedSettings            SystemSetting[]
+
+  // TTD relations
+  createdQuotas              TTDQuotaPeriod[]
+  createdRequests            TTDRequest[]          @relation("CreatedBy")
+  quotaReservedRequests      TTDRequest[]          @relation("QuotaReservedBy")
+  approvedRequests           TTDRequest[]          @relation("ApprovedBy")
+  rejectedRequests           TTDRequest[]          @relation("RejectedBy")
+  letterPreparedRequests     TTDRequest[]          @relation("LetterPreparedBy")
+  distributedRequests        TTDRequest[]          @relation("DistributedBy")
+  cancelledRequests          TTDRequest[]          @relation("CancelledBy")
+  performedQuotaTransactions TTDQuotaTransaction[]
+
+  @@index([isActive])
+  @@index([department])
+  @@index([mobileNumber])
+  @@index([employeeCode])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verifications")
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique // e.g. "Super Admin", "MP Office Admin", etc.
+  description String?
+  userRoles   UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique // e.g. "schedule:create", "ttd:approve", etc.
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model Schedule {
+  id                   String               @id @default(uuid())
+  title                String
+  description          String?
+  startAt              DateTime // Stored in UTC
+  endAt                DateTime // Stored in UTC
+  venue                String
+  status               String               @default("DRAFT") // DRAFT, CONFIRMED, TRAVELLING, ARRIVED, IN_PROGRESS, COMPLETED, POSTPONED, CANCELLED
+  organizerName        String?
+  organizerPhone       String?
+  googleMapsLink       String?
+  category             String?
+  priority             String?              @default("MEDIUM")
+  internalInstructions String?
+  requiredDocuments    String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  assignments          ScheduleAssignment[]
+  contacts             ScheduleContact[]
+  visitChecklist       VisitChecklist?
+  socialMediaUpdate    SocialMediaUpdate?
+  attachments          Attachment[]
+  ttdRequests          TTDRequest[]
+
+  @@map("schedules")
+}
+
+model ScheduleAssignment {
+  id         String   @id @default(uuid())
+  scheduleId String
+  userId     String
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([scheduleId, userId])
+  @@map("schedule_assignments")
+}
+
+model ScheduleContact {
+  id          String   @id @default(uuid())
+  scheduleId  String
+  name        String
+  phone       String
+  designation String?
+  schedule    Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@map("schedule_contacts")
+}
+
+model ChecklistTemplate {
+  id              String                  @id @default(uuid())
+  name            String
+  description     String?
+  eventCategory   String?
+  isDefault       Boolean                 @default(false)
+  isActive        Boolean                 @default(true)
+  createdById     String?
+  createdBy       User?                   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  items           ChecklistTemplateItem[]
+  visitChecklists VisitChecklist[]
+
+  @@map("checklist_templates")
+}
+
+model ChecklistTemplateItem {
+  id                  String               @id @default(uuid())
+  templateId          String
+  template            ChecklistTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title               String
+  description         String?
+  section             String // BEFORE_VISIT, DURING_VISIT, AFTER_VISIT
+  displayOrder        Int                  @default(0)
+  isMandatory         Boolean              @default(false)
+  defaultAssignedRole String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  visitItems          VisitChecklistItem[]
+
+  @@map("checklist_template_items")
+}
+
+model VisitChecklist {
+  id             String               @id @default(uuid())
+  scheduleId     String               @unique
+  schedule       Schedule             @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  templateId     String?
+  template       ChecklistTemplate?   @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  status         String               @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  totalItems     Int                  @default(0)
+  completedItems Int                  @default(0)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  items          VisitChecklistItem[]
+
+  @@map("visit_checklists")
+}
+
+model VisitChecklistItem {
+  id               String                 @id @default(uuid())
+  visitChecklistId String
+  visitChecklist   VisitChecklist         @relation(fields: [visitChecklistId], references: [id], onDelete: Cascade)
+  templateItemId   String?
+  templateItem     ChecklistTemplateItem? @relation(fields: [templateItemId], references: [id], onDelete: SetNull)
+  title            String
+  description      String?
+  section          String // BEFORE_VISIT, DURING_VISIT, AFTER_VISIT
+  displayOrder     Int                    @default(0)
+  isMandatory      Boolean                @default(false)
+  isCompleted      Boolean                @default(false)
+  assignedUserId   String?
+  assignedUser     User?                  @relation("AssignedItems", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  completedById    String?
+  completedBy      User?                  @relation("CompletedItems", fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt      DateTime?
+  remarks          String?
+  version          Int                    @default(1)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@map("visit_checklist_items")
+}
+
+model ChecklistMutation {
+  id               String   @id @default(uuid())
+  clientMutationId String   @unique
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklistItemId  String
+  mutationType     String // e.g. "TOGGLE_COMPLETE", "ASSIGN_STAFF", "UPDATE_REMARKS"
+  processedAt      DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  @@map("checklist_mutations")
+}
+
+model SocialMediaUpdate {
+  id         String   @id @default(uuid())
+  scheduleId String   @unique
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  isRequired Boolean @default(false)
+  status     String  @default("NOT_REQUIRED") // SocialMediaWorkflowStatus
+
+  mediaReceived   Boolean   @default(false)
+  mediaReceivedAt DateTime?
+
+  captionPrepared   Boolean   @default(false)
+  captionPreparedAt DateTime?
+
+  approvalStatus String    @default("NOT_SUBMITTED") // ApprovalStatus
+  approvedById   String?
+  approvedAt     DateTime?
+  approvedBy     User?     @relation("ApprovedSocialMedia", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  assignedUserId String?
+  assignedUser   User?   @relation("AssignedSocialMedia", fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  notes String?
+
+  mediaFolderUrl String?
+  photoFolderUrl String?
+  videoFolderUrl String?
+
+  posts SocialMediaPost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("social_media_updates")
+}
+
+model SocialMediaPost {
+  id                  String            @id @default(uuid())
+  socialMediaUpdateId String
+  socialMediaUpdate   SocialMediaUpdate @relation(fields: [socialMediaUpdateId], references: [id], onDelete: Cascade)
+
+  platform   String // FACEBOOK, INSTAGRAM, X, YOUTUBE, WEBSITE
+  postType   String // POST, REEL, STORY, VIDEO, SHORT, PRESS_RELEASE, OTHER
+  status     String  @default("NOT_REQUIRED") // SocialPostStatus
+  isRequired Boolean @default(true)
+
+  postUrl     String?
+  captionText String?
+  remarks     String?
+
+  publishedAt   DateTime?
+  publishedById String?
+  publishedBy   User?     @relation("PublishedSocialMediaPosts", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([socialMediaUpdateId, platform, postType])
+  @@map("social_media_posts")
+}
+
+model TTDQuotaPeriod {
+  id               String                @id @default(uuid())
+  name             String
+  startDate        DateTime
+  endDate          DateTime
+  allocatedLetters Int
+  reservedLetters  Int                   @default(0)
+  issuedLetters    Int                   @default(0)
+  isActive         Boolean               @default(true)
+  notes            String?
+  createdById      String
+  createdBy        User                  @relation(fields: [createdById], references: [id])
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  requests         TTDRequest[]
+  transactions     TTDQuotaTransaction[]
+
+  @@map("ttd_quota_periods")
+}
+
+model TTDRequest {
+  id                    String                @id @default(uuid())
+  requestNumber         String                @unique
+  applicantName         String
+  applicantMobile       String
+  alternateMobile       String?
+  address               String?
+  district              String?
+  constituency          String?
+  sourceType            String // TTDSourceType enum values
+  sourceDescription     String?
+  relatedScheduleId     String?
+  relatedSchedule       Schedule?             @relation(fields: [relatedScheduleId], references: [id], onDelete: SetNull)
+  referencePersonName   String?
+  referencePersonMobile String?
+  preferredDarshanDate  DateTime
+  alternateDarshanDate  DateTime?
+  numberOfMembers       Int
+  status                String                @default("REQUESTED") // TTDRequestStatus
+  verificationStatus    String                @default("NOT_STARTED") // TTDVerificationStatus
+  documentsStatus       String                @default("NOT_SUBMITTED") // TTDDocumentsStatus
+  quotaPeriodId         String?
+  quotaPeriod           TTDQuotaPeriod?       @relation(fields: [quotaPeriodId], references: [id], onDelete: SetNull)
+  quotaReservedAt       DateTime?
+  quotaReservedById     String?
+  quotaReservedBy       User?                 @relation("QuotaReservedBy", fields: [quotaReservedById], references: [id])
+  approvedAt            DateTime?
+  approvedById          String?
+  approvedBy            User?                 @relation("ApprovedBy", fields: [approvedById], references: [id])
+  rejectedAt            DateTime?
+  rejectedById          String?
+  rejectedBy            User?                 @relation("RejectedBy", fields: [rejectedById], references: [id])
+  rejectionReason       String?
+  letterNumber          String?               @unique
+  letterDate            DateTime?
+  letterPreparedAt      DateTime?
+  letterPreparedById    String?
+  letterPreparedBy      User?                 @relation("LetterPreparedBy", fields: [letterPreparedById], references: [id])
+  distributedAt         DateTime?
+  distributedById       String?
+  distributedBy         User?                 @relation("DistributedBy", fields: [distributedById], references: [id])
+  usedAt                DateTime?
+  cancelledAt           DateTime?
+  cancelledById         String?
+  cancelledBy           User?                 @relation("CancelledBy", fields: [cancelledById], references: [id])
+  cancellationReason    String?
+  expiryDate            DateTime?
+  notes                 String?
+  createdById           String
+  createdBy             User                  @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  members               TTDRequestMember[]
+  quotaTransactions     TTDQuotaTransaction[]
+  attachments           Attachment[]
+
+  @@index([requestNumber])
+  @@index([applicantMobile])
+  @@index([preferredDarshanDate])
+  @@index([status])
+  @@index([quotaPeriodId])
+  @@index([relatedScheduleId])
+  @@index([createdAt])
+  @@index([letterNumber])
+  @@map("ttd_requests")
+}
+
+model TTDRequestMember {
+  id                      String     @id @default(uuid())
+  requestId               String
+  request                 TTDRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fullName                String
+  age                     Int
+  gender                  String
+  mobile                  String?
+  relationshipToApplicant String?
+  identityType            String
+  identityLastFourDigits  String
+  identityDocumentId      String?
+  isPrimaryApplicant      Boolean    @default(false)
+  notes                   String?
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+
+  @@index([fullName])
+  @@index([mobile])
+  @@map("ttd_request_members")
+}
+
+model TTDQuotaTransaction {
+  id               String         @id @default(uuid())
+  quotaPeriodId    String
+  quotaPeriod      TTDQuotaPeriod @relation(fields: [quotaPeriodId], references: [id], onDelete: Cascade)
+  requestId        String?
+  request          TTDRequest?    @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  transactionType  String // TTDQuotaTransactionType
+  quantity         Int            @default(1)
+  previousReserved Int
+  newReserved      Int
+  previousIssued   Int
+  newIssued        Int
+  reason           String?
+  performedById    String
+  performedBy      User           @relation(fields: [performedById], references: [id])
+  createdAt        DateTime       @default(now())
+
+  @@map("ttd_quota_transactions")
+}
+
+model Attachment {
+  id           String      @id @default(uuid())
+  filename     String
+  path         String
+  mimeType     String
+  size         Int
+  uploadedById String
+  scheduleId   String?
+  ttdRequestId String?
+  uploadedBy   User        @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  schedule     Schedule?   @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  ttdRequest   TTDRequest? @relation(fields: [ttdRequestId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+
+  @@map("attachments")
+}
+
+model PushSubscription {
+  id              String                 @id @default(uuid())
+  endpoint        String                 @unique
+  p256dh          String
+  auth            String
+  userId          String
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceName      String?
+  browser         String?
+  operatingSystem String?
+  userAgent       String?
+  isActive        Boolean                @default(true)
+  lastUsedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  deliveries      NotificationDelivery[]
+
+  @@map("push_subscriptions")
+}
+
+model NotificationJob {
+  id         String   @id @default(uuid())
+  jobId      String   @unique // BullMQ job ID
+  scheduleId String?
+  triggerAt  DateTime
+  status     String   @default("ACTIVE") // ACTIVE, TRIGGERED, CANCELLED
+
+  @@map("notification_jobs")
+}
+
+model Notification {
+  id                String                 @id @default(uuid())
+  userId            String
+  type              String // e.g. "schedule", "checklist", "social_media", "ttd"
+  title             String
+  message           String
+  targetUrl         String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  readAt            DateTime?
+  createdAt         DateTime               @default(now())
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries        NotificationDelivery[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationDelivery {
+  id                 String           @id @default(uuid())
+  notificationId     String
+  notification       Notification     @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  pushSubscriptionId String
+  pushSubscription   PushSubscription @relation(fields: [pushSubscriptionId], references: [id], onDelete: Cascade)
+  status             String // PENDING, QUEUED, SENT, FAILED, EXPIRED, SKIPPED
+  attemptCount       Int              @default(0)
+  lastAttemptAt      DateTime?
+  deliveredAt        DateTime?
+  errorCode          String?
+  errorMessage       String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([notificationId])
+  @@index([pushSubscriptionId])
+  @@map("notification_deliveries")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activity_logs")
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  valueType   String // "string", "number", "boolean", "json"
+  category    String // "GENERAL", "SCHEDULE", "SOCIAL_MEDIA", "TTD", "NOTIFICATIONS", "FILES", "DATA_RETENTION"
+  isPublic    Boolean  @default(false)
+  description String?
+  updatedById String?
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
