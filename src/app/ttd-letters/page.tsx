@@ -10,6 +10,7 @@ import {
   AlertTriangle, Check, X 
 } from "lucide-react";
 import Link from "next/link";
+import { TtdRequestModal } from "@/components/TtdRequestModal";
 
 interface QuotaPeriod {
   id: string;
@@ -43,6 +44,7 @@ export default function TTDLettersDashboard() {
   const { data: session } = authClient.useSession();
   const [activeTab, setActiveTab] = useState<"dashboard" | "requests" | "quotas">("dashboard");
   const [isPending, startTransition] = useTransition();
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Metrics states
   const [metrics, setMetrics] = useState<any>(null);
@@ -87,7 +89,7 @@ export default function TTDLettersDashboard() {
   const fetchMetrics = async () => {
     try {
       setLoadingMetrics(true);
-      const res = await fetch("/api/dashboard");
+      const res = await fetch("/api/dashboard", { cache: "no-store" });
       if (res.ok) {
         const body = await res.json();
         setMetrics(body.metrics || null);
@@ -112,7 +114,7 @@ export default function TTDLettersDashboard() {
       if (searchQuery) params.append("query", searchQuery);
       if (quotaFilter) params.append("quotaPeriodId", quotaFilter);
 
-      const res = await fetch(`/api/ttd/requests?${params.toString()}`);
+      const res = await fetch(`/api/ttd/requests?${params.toString()}`, { cache: "no-store" });
       if (res.ok) {
         const body = await res.json();
         setRequests(body.requests || []);
@@ -129,7 +131,7 @@ export default function TTDLettersDashboard() {
   const fetchQuotas = async () => {
     try {
       setLoadingQuotas(true);
-      const res = await fetch("/api/ttd/quotas");
+      const res = await fetch("/api/ttd/quotas", { cache: "no-store" });
       if (res.ok) {
         const body = await res.json();
         setQuotas(body);
@@ -144,10 +146,15 @@ export default function TTDLettersDashboard() {
   useEffect(() => {
     if (session?.user) {
       fetchMetrics();
-      fetchRequests();
       fetchQuotas();
     }
-  }, [session, reqPage]);
+  }, [session]);
+
+  useEffect(() => {
+    if (session?.user) {
+      fetchRequests();
+    }
+  }, [session, reqPage, statusFilter, verFilter, docFilter, quotaFilter]);
 
   // Handle create quota period
   const handleCreateQuota = (e: React.FormEvent) => {
@@ -246,13 +253,24 @@ export default function TTDLettersDashboard() {
           <h1 className="text-2xl font-bold text-gray-900 font-sans">TTD VIP Recommendation Letters</h1>
           <p className="text-xs text-gray-500 mt-1">Manage ticket allocations, verification reviews, and letter distributions</p>
         </div>
-        <Link
-          href="/add?tab=ttd"
-          className="flex items-center justify-center gap-2 px-4.5 py-2.5 bg-primary hover:bg-amber-700 text-white font-medium rounded-md shadow-sm transition text-sm w-full md:w-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Letter Request</span>
-        </Link>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+          <button
+            onClick={async () => {
+              await Promise.all([fetchMetrics(), fetchRequests(), fetchQuotas()]);
+            }}
+            className="flex items-center justify-center gap-2 px-4.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-md shadow-sm transition text-sm w-full md:w-auto"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Sync / Refresh</span>
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center justify-center gap-2 px-4.5 py-2.5 bg-primary hover:bg-amber-700 text-white font-medium rounded-md shadow-sm transition text-sm w-full md:w-auto cursor-pointer focus:outline-none"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Add New</span>
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -380,7 +398,7 @@ export default function TTDLettersDashboard() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => { setStatusFilter(e.target.value); setReqPage(1); }}
                 className="text-xs border border-gray-200 rounded px-2 h-9 bg-white"
               >
                 <option value="">All Statuses</option>
@@ -399,7 +417,7 @@ export default function TTDLettersDashboard() {
 
               <select
                 value={verFilter}
-                onChange={(e) => setVerFilter(e.target.value)}
+                onChange={(e) => { setVerFilter(e.target.value); setReqPage(1); }}
                 className="text-xs border border-gray-200 rounded px-2 h-9 bg-white"
               >
                 <option value="">Verification Status</option>
@@ -411,7 +429,7 @@ export default function TTDLettersDashboard() {
 
               <select
                 value={docFilter}
-                onChange={(e) => setDocFilter(e.target.value)}
+                onChange={(e) => { setDocFilter(e.target.value); setReqPage(1); }}
                 className="text-xs border border-gray-200 rounded px-2 h-9 bg-white"
               >
                 <option value="">Documents Status</option>
@@ -424,7 +442,7 @@ export default function TTDLettersDashboard() {
 
               <select
                 value={quotaFilter}
-                onChange={(e) => setQuotaFilter(e.target.value)}
+                onChange={(e) => { setQuotaFilter(e.target.value); setReqPage(1); }}
                 className="text-xs border border-gray-200 rounded px-2 h-9 bg-white"
               >
                 <option value="">Quota Period</option>
@@ -726,6 +744,12 @@ export default function TTDLettersDashboard() {
           </form>
         </div>
       )}
+
+      <TtdRequestModal 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)} 
+        onSave={() => fetchRequests()} 
+      />
     </PageLayout>
   );
 }

@@ -18,6 +18,15 @@ export async function GET(request: Request) {
         name: true,
         email: true,
         mobileNumber: true,
+        userRoles: {
+          select: {
+            role: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         name: "asc",

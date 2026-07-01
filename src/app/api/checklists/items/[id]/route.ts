@@ -60,7 +60,7 @@ export async function PATCH(
     const isAdmin = roles.includes("Super Admin") || roles.includes("MP Office Admin");
     const isCoordinator = roles.includes("Schedule Coordinator") && 
       (schedule.assignments.some(a => a.userId === session.user.id) || isAdmin);
-    const isStaff = roles.includes("Field Coordinator");
+    const isStaff = roles.includes("Field Coordinator") || roles.includes("Field Staff");
 
     const payload = await request.json();
     const result = patchChecklistItemSchema.safeParse(payload);

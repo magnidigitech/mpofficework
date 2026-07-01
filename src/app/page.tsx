@@ -191,42 +191,60 @@ export default function Dashboard() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {/* Today Total */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm">
+            <Link 
+              href="/schedule?tab=today" 
+              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm hover:shadow-md hover:border-amber-200 transition cursor-pointer"
+            >
               <span className="text-2xl font-black text-gray-900">{metrics?.todayTotal || 0}</span>
               <h3 className="font-semibold text-gray-700 text-xs mt-1">Today's Visits</h3>
-            </div>
+            </Link>
 
             {/* Today Completed */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm">
+            <Link 
+              href="/schedule?tab=all" 
+              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm hover:shadow-md hover:border-emerald-200 transition cursor-pointer"
+            >
               <span className="text-2xl font-black text-emerald-700">{metrics?.todayCompleted || 0}</span>
               <h3 className="font-semibold text-gray-700 text-xs mt-1">Completed Visits</h3>
-            </div>
+            </Link>
 
             {/* Today Upcoming */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm">
+            <Link 
+              href="/schedule?tab=weekly" 
+              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm hover:shadow-md hover:border-amber-200 transition cursor-pointer"
+            >
               <span className="text-2xl font-black text-amber-600">{metrics?.todayUpcoming || 0}</span>
               <h3 className="font-semibold text-gray-700 text-xs mt-1">Upcoming Visits</h3>
-            </div>
+            </Link>
 
             {/* Today Cancelled */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm">
+            <Link 
+              href="/schedule?tab=all" 
+              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm hover:shadow-md hover:border-red-200 transition cursor-pointer"
+            >
               <span className="text-2xl font-black text-red-600">{metrics?.todayCancelled || 0}</span>
               <h3 className="font-semibold text-gray-700 text-xs mt-1">Cancelled Visits</h3>
-            </div>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             {/* Checklist items remaining */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex items-center justify-between">
+            <Link 
+              href="/schedule?tab=all" 
+              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-200 transition cursor-pointer"
+            >
               <div>
                 <h3 className="font-semibold text-gray-700 text-xs">Pending Checklists</h3>
                 <span className="text-xl font-black text-gray-900 mt-1 block">{metrics?.pendingChecklists || 0}</span>
               </div>
               <CheckSquare className="w-8 h-8 text-primary/30" />
-            </div>
+            </Link>
 
             {/* Social media links pending */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex flex-col justify-between">
+            <Link 
+              href="/schedule?tab=all" 
+              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex flex-col justify-between hover:shadow-md hover:border-amber-200 transition cursor-pointer"
+            >
               <div className="flex items-start justify-between w-full">
                 <div>
                   <h3 className="font-semibold text-gray-700 text-xs">Pending Social Tracks</h3>
@@ -243,25 +261,31 @@ export default function Dashboard() {
                   PARTIAL POSTS: <span className="text-gray-700">{(metrics as any)?.smPartiallyPublishedCount || 0}</span>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* TTD Quota Used */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex items-center justify-between">
+            <Link 
+              href="/ttd-letters" 
+              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-200 transition cursor-pointer"
+            >
               <div>
                 <h3 className="font-semibold text-gray-700 text-xs">TTD Quota Used</h3>
                 <span className="text-xl font-black text-gray-900 mt-1 block">{metrics?.ttdQuotaUsed || 0}</span>
               </div>
               <Award className="w-8 h-8 text-primary/30" />
-            </div>
+            </Link>
 
             {/* TTD Quota Available */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex items-center justify-between">
+            <Link 
+              href="/ttd-letters" 
+              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex items-center justify-between hover:shadow-md hover:border-emerald-250 transition cursor-pointer"
+            >
               <div>
                 <h3 className="font-semibold text-gray-700 text-xs">TTD Quota Available</h3>
                 <span className="text-xl font-black text-emerald-700 mt-1 block">{metrics?.ttdQuotaAvailable || 0}</span>
               </div>
               <FileText className="w-8 h-8 text-emerald-600/20" />
-            </div>
+            </Link>
           </div>
         </>
       )}

@@ -73,6 +73,7 @@ export async function GET(
     const isCoordinator = roles.includes("Schedule Coordinator") && schedule.assignments.some(a => a.userId === session.user.id);
     const isStaff = schedule.assignments.some(a => a.userId === session.user.id);
     const isViewer = roles.includes("Viewer");
+    const isSMTeam = roles.includes("Social Media Team");
 
     // Fetch Social Media Update record
     const socialMedia = await prisma.socialMediaUpdate.findUnique({
@@ -103,7 +104,7 @@ export async function GET(
     }
 
     const isAssignedSM = socialMedia.assignedUserId === session.user.id;
-    const canView = isAdmin || isCoordinator || isAssignedSM || isStaff || isViewer;
+    const canView = isAdmin || isCoordinator || isAssignedSM || isStaff || isViewer || isSMTeam;
 
     if (!canView) {
       return NextResponse.json(

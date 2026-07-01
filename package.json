@@ -10,7 +10,7 @@
     "build": "next build && tsc -p tsconfig.worker.json",
     "start": "next start",
     "lint": "eslint",
-    "start:production": "node scripts/verify-env.js && node server.js",
+    "start:production": "node scripts/verify-env.js && npx prisma migrate deploy && node server.js",
     "worker:production": "node scripts/verify-env.js && node dist-worker/worker-run.js",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed:production": "npx tsx prisma/seed-production.ts"

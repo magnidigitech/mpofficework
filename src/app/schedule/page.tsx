@@ -9,6 +9,7 @@ import {
   AlertTriangle, Navigation as MapIcon, Shield, Layers, BookOpen, AlertCircle, Trash, Edit3, Clock, Share2
 } from "lucide-react";
 import Link from "next/link";
+import { ScheduleModal } from "@/components/ScheduleModal";
 
 interface AssignedUser {
   id: string;
@@ -26,7 +27,7 @@ interface ScheduleWithRelations extends OfflineSchedule {
   requiredDocuments?: string;
   contacts: OfflineContact[];
   assignments: { user: AssignedUser }[];
-  socialMediaUpdate?: { isRequired: boolean; status: string } | null;
+  socialMediaUpdate?: { isRequired: boolean; status: string; posts?: any[] } | null;
 }
 
 export default function SchedulePage() {
@@ -35,11 +36,121 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<"today" | "tomorrow" | "weekly" | "all">("today");
+  const [activeTab, setActiveTab] = useState<"today" | "tomorrow" | "weekly" | "all">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab")?.toLowerCase();
+      if (tabParam && ["today", "tomorrow", "weekly", "all"].includes(tabParam)) {
+        return tabParam as any;
+      }
+    }
+    return "today";
+  });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editScheduleId, setEditScheduleId] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [syncing, setSyncing] = useState(false);
 
   // User role details
   const isAdmin = session?.user?.email === "admin@mpoffice.com";
+
+  // Load user roles
+  useEffect(() => {
+    async function loadRoles() {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const profile = await res.json();
+          setUserRoles(profile.roles || []);
+        }
+      } catch (err) {
+        console.error("Failed to load user roles:", err);
+      }
+    }
+    loadRoles();
+  }, []);
+
+  const canEdit = isAdmin || userRoles.includes("Super Admin") || userRoles.includes("MP Office Admin") || userRoles.includes("Schedule Coordinator");
+  const canDelete = isAdmin || userRoles.includes("Super Admin") || userRoles.includes("MP Office Admin");
+  const isReadOnlyViewer = !isAdmin && !userRoles.includes("Super Admin") && !userRoles.includes("MP Office Admin") && !userRoles.includes("Schedule Coordinator") && !userRoles.includes("Social Media Team");
+
+  // Synchronize offline mutations queue from list view
+  const triggerSync = async () => {
+    if (!navigator.onLine || syncing) return;
+    setSyncing(true);
+
+    try {
+      const mutations = await db.pendingChecklistMutations.toArray();
+      if (mutations.length === 0) {
+        setSyncing(false);
+        return;
+      }
+
+      const response = await fetch("/api/checklists/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mutations }),
+      });
+
+      if (response.ok) {
+        const results = await response.json();
+        
+        // Delete successful and duplicate mutations from Dexie queue
+        const successIds = [
+          ...results.successful.map((m: any) => m.clientMutationId),
+          ...results.duplicate.map((m: any) => m.clientMutationId),
+        ];
+
+        for (const id of successIds) {
+          await db.pendingChecklistMutations.delete(id);
+        }
+
+        // Update local cached checklist item versions so subsequent mutations use correct expectedVersion
+        for (const s of results.successful) {
+          const mutObj = mutations.find((m: any) => m.clientMutationId === s.clientMutationId);
+          const schedId = mutObj?.scheduleId || "";
+          if (schedId) {
+            const cached = await db.cachedChecklists.get(schedId);
+            if (cached) {
+              const itemIdx = cached.items.findIndex(i => i.id === s.checklistItemId);
+              if (itemIdx !== -1) {
+                cached.items[itemIdx].version = s.version;
+              }
+              await db.cachedChecklists.put(cached);
+            }
+          }
+        }
+
+        // Handle conflicts (flag local items in cached checklists)
+        if (results.conflicts.length > 0) {
+          for (const conflict of results.conflicts) {
+            const cached = await db.cachedChecklists.get(conflict.scheduleId || "");
+            if (cached) {
+              const itemIdx = cached.items.findIndex(i => i.id === conflict.checklistItemId);
+              if (itemIdx !== -1) {
+                cached.items[itemIdx].version = conflict.serverVersion;
+                (cached.items[itemIdx] as any).conflict = {
+                  serverVersion: conflict.serverVersion,
+                  serverValue: conflict.latestServerValue,
+                  localValue: conflict.localSubmittedValue,
+                };
+              }
+              await db.cachedChecklists.put(cached);
+            }
+          }
+        }
+
+        // Update pending count
+        const count = await db.pendingChecklistMutations.count();
+        setPendingCount(count);
+      }
+    } catch (err) {
+      console.error("Failed to execute sync from schedule list:", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Load schedules & sync state
   const loadData = async (tab: typeof activeTab = activeTab) => {
@@ -109,6 +220,10 @@ export default function SchedulePage() {
       // Update pending queue count from mutations
       const count = await db.pendingChecklistMutations.count();
       setPendingCount(count);
+
+      if (navigator.onLine && count > 0) {
+        triggerSync();
+      }
     } catch (err) {
       console.error("Failed to load schedules:", err);
     } finally {
@@ -214,12 +329,12 @@ export default function SchedulePage() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
-          <Link
-            href="/add?tab=schedule"
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-amber-700 text-white font-medium rounded-md shadow-sm transition text-xs"
+          <button
+            onClick={() => { setEditScheduleId(null); setShowAddModal(true); }}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-amber-700 text-white font-medium rounded-md shadow-sm transition text-xs cursor-pointer focus:outline-none"
           >
-            Add Visit
-          </Link>
+            + Add New
+          </button>
         </div>
       </div>
 
@@ -271,8 +386,8 @@ export default function SchedulePage() {
               {/* Heading */}
               <div className="flex justify-between items-start flex-wrap gap-2">
                 <div>
-                  <h2 className="text-base font-bold text-gray-950 leading-snug">{schedule.title}</h2>
-                  <p className="text-xs text-gray-500 mt-1 font-medium">
+                  <h2 className={`${isReadOnlyViewer ? "text-lg font-extrabold" : "text-base font-bold"} text-gray-950 leading-snug`}>{schedule.title}</h2>
+                  <p className={`${isReadOnlyViewer ? "text-sm text-gray-600 font-semibold" : "text-xs text-gray-500 font-medium"} mt-1`}>
                     {new Date(schedule.startAt).toLocaleDateString("en-IN", {
                       weekday: "long",
                       day: "numeric",
@@ -284,21 +399,83 @@ export default function SchedulePage() {
                 </div>
                 
                 {/* Status & Priority Badge */}
-                <div className="flex gap-1.5 items-center shrink-0 flex-wrap justify-end">
-                  {schedule.priority && (
-                    <span className="bg-red-50 text-red-700 border border-red-100 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded tracking-wide">
-                      {schedule.priority}
-                    </span>
-                  )}
-                  {schedule.socialMediaUpdate && schedule.socialMediaUpdate.isRequired && (
-                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border uppercase tracking-wide ${getSocialBadgeColor(schedule.socialMediaUpdate.status)}`}>
-                      Social: {schedule.socialMediaUpdate.status.replace("_", " ")}
-                    </span>
-                  )}
-                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${getStatusColor(schedule.status)}`}>
-                    {schedule.status}
-                  </span>
-                </div>
+                {!isReadOnlyViewer && (
+                  <div className="flex gap-1.5 items-center shrink-0 flex-wrap justify-end">
+                    {schedule.priority && (
+                      <span className="bg-red-50 text-red-700 border border-red-100 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded tracking-wide">
+                        {schedule.priority}
+                      </span>
+                    )}
+                    {schedule.socialMediaUpdate && schedule.socialMediaUpdate.isRequired && (
+                      <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded border uppercase tracking-wide ${getSocialBadgeColor(schedule.socialMediaUpdate.status)}`}>
+                        Social: {schedule.socialMediaUpdate.status.replace("_", " ")}
+                      </span>
+                    )}
+                    {canEdit ? (
+                      <select
+                        value={schedule.status}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value;
+                          try {
+                            const res = await fetch(`/api/schedules/${schedule.id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ status: newStatus }),
+                            });
+                            if (res.ok) {
+                              loadData(activeTab);
+                            } else {
+                              const err = await res.json();
+                              if (err.allowOverride) {
+                                const reason = prompt(
+                                  `${err.error}\n\nAs Super Admin, you can override this. Enter override reason to complete:`
+                                );
+                                if (reason) {
+                                  const overrideRes = await fetch(`/api/schedules/${schedule.id}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      status: newStatus,
+                                      override: { reason },
+                                    }),
+                                  });
+                                  if (overrideRes.ok) {
+                                    loadData(activeTab);
+                                    return;
+                                  } else {
+                                    const overrideErr = await overrideRes.json();
+                                    alert(overrideErr.error || "Failed to update status with override");
+                                  }
+                                }
+                              } else {
+                                alert(err.error || "Failed to update status");
+                              }
+                              // Revert select input value in UI on failure
+                              loadData(activeTab);
+                            }
+                          } catch (err: any) {
+                            alert(err.message || "Error updating status");
+                            loadData(activeTab);
+                          }
+                        }}
+                        className={`status-select-badge ${getStatusColor(schedule.status)}`}
+                      >
+                        <option value="DRAFT">Draft</option>
+                        <option value="CONFIRMED">Confirmed</option>
+                        <option value="TRAVELLING">Travelling</option>
+                        <option value="ARRIVED">Arrived</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="POSTPONED">Postponed</option>
+                        <option value="CANCELLED">Cancelled</option>
+                      </select>
+                    ) : (
+                      <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${getStatusColor(schedule.status)}`}>
+                        {schedule.status}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Time & Venue */}
@@ -327,7 +504,7 @@ export default function SchedulePage() {
               </div>
 
               {/* Organizer / Contact Info */}
-              {(schedule.organizerName || schedule.organizerPhone || schedule.googleMapsLink) && (
+              {!isReadOnlyViewer && (schedule.organizerName || schedule.organizerPhone || schedule.googleMapsLink) && (
                 <div className="mt-4 bg-gray-50 rounded-lg p-3 text-xs">
                   <div className="flex justify-between items-center flex-wrap gap-2">
                     <div>
@@ -338,7 +515,9 @@ export default function SchedulePage() {
                       {schedule.organizerPhone && (
                         <p className="text-gray-500 flex items-center gap-1 mt-0.5">
                           <Phone className="w-3.5 h-3.5" />
-                          <span>{schedule.organizerPhone}</span>
+                          <a href={`tel:${schedule.organizerPhone}`} className="text-emerald-700 hover:underline font-semibold">
+                            {schedule.organizerPhone}
+                          </a>
                         </p>
                       )}
                     </div>
@@ -359,14 +538,22 @@ export default function SchedulePage() {
               )}
 
               {/* Linked Contacts */}
-              {schedule.contacts.length > 0 && (
+              {!isReadOnlyViewer && schedule.contacts.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Contacts</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {schedule.contacts.map((contact) => (
                       <div key={contact.id} className="p-2.5 bg-gray-50 border border-gray-100 rounded-md text-xs">
                         <p className="font-bold text-gray-800">{contact.name}</p>
-                        <p className="text-gray-500 mt-0.5">{contact.phone}</p>
+                        {contact.phone ? (
+                          <p className="text-gray-500 mt-0.5">
+                            <a href={`tel:${contact.phone}`} className="text-emerald-700 hover:underline font-semibold">
+                              {contact.phone}
+                            </a>
+                          </p>
+                        ) : (
+                          <p className="text-gray-400 mt-0.5">No phone number</p>
+                        )}
                         {contact.designation && (
                           <p className="text-[10px] text-primary font-bold mt-1 uppercase tracking-wide">
                             {contact.designation}
@@ -379,7 +566,7 @@ export default function SchedulePage() {
               )}
 
               {/* Staff Assignments */}
-              {schedule.assignments.length > 0 && (
+              {!isReadOnlyViewer && schedule.assignments.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Assigned Staff</h3>
                   <div className="flex flex-wrap gap-1.5">
@@ -397,41 +584,62 @@ export default function SchedulePage() {
 
               {/* Actions Footer */}
               <div className="flex gap-2 justify-end mt-5 pt-4 border-t border-gray-100 flex-wrap">
-                {schedule.status !== "DRAFT" && (
+                {isReadOnlyViewer ? (
+                  (() => {
+                    const publishedPostsCount = schedule.socialMediaUpdate?.posts?.filter((p: any) => p.postUrl)?.length || 0;
+                    if (publishedPostsCount > 0) {
+                      return (
+                        <Link
+                          href={`/schedule/${schedule.id}/social-media`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold rounded-lg text-xs transition"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Social Media ({publishedPostsCount})</span>
+                        </Link>
+                      );
+                    }
+                    return null;
+                  })()
+                ) : (
                   <>
-                    <Link
-                      href={`/schedule/${schedule.id}/checklist`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-primary font-bold rounded text-xs transition"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Checklist</span>
-                    </Link>
-                    <Link
-                      href={`/schedule/${schedule.id}/social-media`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold rounded text-xs transition"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                      <span>Social Media</span>
-                    </Link>
-                  </>
-                )}
+                    {schedule.status !== "DRAFT" && (
+                      <>
+                        <Link
+                          href={`/schedule/${schedule.id}/checklist`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-primary font-bold rounded text-xs transition"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Checklist</span>
+                        </Link>
+                        <Link
+                          href={`/schedule/${schedule.id}/social-media`}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold rounded text-xs transition"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Social Media</span>
+                        </Link>
+                      </>
+                    )}
 
-                {isAdmin && (
-                  <>
-                    <Link
-                      href={`/add?tab=schedule&id=${schedule.id}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded text-xs transition"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>Edit</span>
-                    </Link>
-                    <button
-                      onClick={() => setDeleteConfirmId(schedule.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-semibold rounded text-xs transition"
-                    >
-                      <Trash className="w-3.5 h-3.5" />
-                      <span>Delete</span>
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => { setEditScheduleId(schedule.id); setShowAddModal(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded text-xs transition cursor-pointer focus:outline-none"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                    )}
+
+                    {canDelete && (
+                      <button
+                        onClick={() => setDeleteConfirmId(schedule.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-semibold rounded text-xs transition cursor-pointer focus:outline-none"
+                      >
+                        <Trash className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -465,6 +673,13 @@ export default function SchedulePage() {
           </div>
         </div>
       )}
+
+      <ScheduleModal 
+        isOpen={showAddModal} 
+        onClose={() => { setShowAddModal(false); setEditScheduleId(null); }} 
+        onSave={() => loadData(activeTab)} 
+        editId={editScheduleId} 
+      />
     </PageLayout>
   );
 }

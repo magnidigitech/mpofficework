@@ -10,6 +10,9 @@ const prisma_1 = require("./prisma");
 const redisConnection = new ioredis_1.default(process.env.REDIS_URL || "redis://localhost:6379", {
     maxRetriesPerRequest: null,
 });
+redisConnection.on("error", (err) => {
+    // Suppress connection logs/warnings in build & offline dev environments
+});
 // Configure VAPID keys
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;

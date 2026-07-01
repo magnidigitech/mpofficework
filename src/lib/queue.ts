@@ -6,6 +6,10 @@ const connection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", 
   maxRetriesPerRequest: null,
 });
 
+connection.on("error", (err) => {
+  // Suppress connection logs/warnings in build & offline dev environments
+});
+
 export const notificationQueue = new Queue("notifications", {
   connection: connection as any,
   defaultJobOptions: {

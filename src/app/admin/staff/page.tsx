@@ -6,7 +6,8 @@ import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { 
   Users, Search, Plus, Edit, ShieldAlert, Key, Ban, CheckCircle, 
-  X, AlertCircle, Copy, Check, Info, ShieldCheck, RefreshCw, Loader2
+  X, AlertCircle, Copy, Check, Info, ShieldCheck, RefreshCw, Loader2,
+  Mail, Phone, Smartphone
 } from "lucide-react";
 
 interface UserRecord {
@@ -283,6 +284,52 @@ export default function StaffManagement() {
     setTempPassword(pass);
   };
 
+  // Group and sort users by role
+  const groupUsersByRole = (usersList: UserRecord[]) => {
+    const groups: { [role: string]: UserRecord[] } = {};
+
+    usersList.forEach((user) => {
+      const roleName = user.role || "None";
+      if (!groups[roleName]) {
+        groups[roleName] = [];
+      }
+      groups[roleName].push(user);
+    });
+
+    // Sort users alphabetically by name within each role
+    Object.keys(groups).forEach((role) => {
+      groups[role].sort((a, b) => a.name.localeCompare(b.name));
+    });
+
+    // Sort roles alphabetically
+    const sortedRoles = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+    return { groups, sortedRoles };
+  };
+
+  const getAvatarGradient = (role: string) => {
+    switch (role) {
+      case "Super Admin":
+        return "from-purple-600 to-indigo-600 text-white border-purple-200/50";
+      case "MP Office Admin":
+        return "from-blue-600 to-indigo-500 text-white border-blue-200/50";
+      case "Schedule Coordinator":
+        return "from-emerald-600 to-teal-500 text-white border-emerald-200/50";
+      case "Field Staff":
+        return "from-amber-500 to-orange-500 text-white border-amber-200/50";
+      case "Social Media Team":
+        return "from-pink-500 to-rose-500 text-white border-pink-200/50";
+      case "TTD Manager":
+        return "from-cyan-600 to-sky-500 text-white border-cyan-200/50";
+      case "TTD Staff":
+        return "from-sky-500 to-blue-500 text-white border-sky-200/50";
+      default:
+        return "from-gray-500 to-slate-600 text-white border-gray-200/50";
+    }
+  };
+
+  const { groups, sortedRoles } = groupUsersByRole(users);
+
   return (
     <PageLayout>
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -358,8 +405,8 @@ export default function StaffManagement() {
           </div>
         )}
 
-        {/* Table Content */}
-        <div className="overflow-x-auto">
+        {/* Cards Content */}
+        <div>
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <Loader2 className="w-10 h-10 animate-spin text-emerald-700" />
@@ -372,90 +419,132 @@ export default function StaffManagement() {
               <p className="text-xs text-gray-500 mt-1">Try resetting your search query or filters.</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 text-[10px] uppercase font-bold text-gray-500 border-b border-gray-200">
-                  <th className="px-6 py-3.5">Code / Name</th>
-                  <th className="px-6 py-3.5">Role</th>
-                  <th className="px-6 py-3.5">Department / Desig</th>
-                  <th className="px-6 py-3.5">Contact Details</th>
-                  <th className="px-6 py-3.5">Status</th>
-                  <th className="px-6 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {users.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50/50 text-sm transition">
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900">{user.employeeCode}</div>
-                      <div className="text-gray-500 text-xs mt-0.5">{user.name}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                        {user.role === "Super Admin" ? (
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                        ) : (
-                          <Users className="w-3.5 h-3.5" />
-                        )}
-                        <span>{user.role}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-gray-900">{user.designation || "N/A"}</div>
-                      <div className="text-gray-500 text-xs mt-0.5">{user.department || "N/A"}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-gray-900 text-xs font-semibold">{user.email}</div>
-                      <div className="text-gray-500 text-xs mt-0.5">{user.mobileNumber}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${
-                        user.isActive 
-                          ? "bg-emerald-100 text-emerald-800" 
-                          : "bg-red-100 text-red-800"
-                      }`}>
-                        {user.isActive ? "Active" : "Deactivated"}
-                      </span>
-                      {user.mustChangePassword && (
-                        <div className="text-[10px] text-amber-600 font-bold mt-1 flex items-center gap-0.5">
-                          <Key className="w-3 h-3" />
-                          <span>Reset Required</span>
+            <div className="p-6 md:p-8 space-y-8 bg-gray-50/30">
+              {sortedRoles.map((role) => (
+                <div key={role} className="space-y-4">
+                  {/* Role Header */}
+                  <div className="flex items-center gap-3 border-b border-gray-150 pb-2.5">
+                    <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full bg-gradient-to-r ${getAvatarGradient(role).split(" ").slice(0, 2).join(" ")}`} />
+                      <span>{role}</span>
+                    </h2>
+                    <span className="text-xs font-semibold text-gray-500 bg-gray-150/50 px-2 py-0.5 rounded-full border border-gray-200/40">
+                      {groups[role].length} {groups[role].length === 1 ? "Staff member" : "Staff members"}
+                    </span>
+                  </div>
+
+                  {/* Cards Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {groups[role].map((user) => (
+                      <div
+                        key={user.id}
+                        className="bg-white border border-gray-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-emerald-600/20 transition-all duration-300 hover:-translate-y-0.5 flex flex-col justify-between group relative overflow-hidden"
+                      >
+                        {/* Decorative background blur on hover */}
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-600/5 to-teal-600/5 rounded-full blur-xl group-hover:scale-150 transition-all duration-500 -z-10" />
+                        
+                        <div>
+                          {/* Top row */}
+                          <div className="flex items-start justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-3">
+                              {/* Avatar */}
+                              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarGradient(user.role)} flex items-center justify-center font-bold text-sm shadow-sm border`}>
+                                {user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-gray-950 group-hover:text-emerald-800 transition-colors line-clamp-1">
+                                  {user.name}
+                                </h3>
+                                <p className="text-[10px] font-mono text-gray-400 tracking-wider mt-0.5">{user.employeeCode}</p>
+                              </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
+                                user.isActive 
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200/50" 
+                                  : "bg-red-50 text-red-700 border-red-200/50"
+                              }`}>
+                                {user.isActive ? "Active" : "Inactive"}
+                              </span>
+                              {user.mustChangePassword && (
+                                <span className="px-2 py-0.5 text-[9px] font-bold bg-amber-50 text-amber-700 border-amber-200/50 rounded-full flex items-center gap-0.5">
+                                  <Key className="w-2.5 h-2.5" />
+                                  <span>Reset Req.</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Dept / Designation Info Card */}
+                          <div className="space-y-1.5 mb-4 p-3 bg-gray-50/50 border border-gray-100 rounded-xl text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400 font-medium">Designation:</span>
+                              <span className="font-bold text-gray-800">{user.designation || "N/A"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-400 font-medium">Department:</span>
+                              <span className="font-bold text-gray-800">{user.department || "N/A"}</span>
+                            </div>
+                          </div>
+
+                          {/* Contact Details */}
+                          <div className="space-y-1.5 text-xs text-gray-600 mb-2">
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-gray-400 shrink-0" />
+                              <a href={`mailto:${user.email}`} className="hover:underline hover:text-emerald-700 break-all font-medium">
+                                {user.email}
+                              </a>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+                              <span className="font-medium">{user.mobileNumber}</span>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEditOpen(user)}
-                          title="Edit Details"
-                          className="p-2 text-gray-500 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 active:scale-95 transition"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleResetOpen(user)}
-                          title="Reset Password"
-                          className="p-2 text-gray-500 hover:text-amber-700 rounded-lg hover:bg-amber-50 active:scale-95 transition"
-                        >
-                          <Key className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => toggleUserActiveState(user)}
-                          title={user.isActive ? "Deactivate" : "Activate"}
-                          className={`p-2 rounded-lg active:scale-95 transition ${
-                            user.isActive 
-                              ? "text-red-500 hover:text-red-700 hover:bg-red-50" 
-                              : "text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50"
-                          }`}
-                        >
-                          {user.isActive ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                        </button>
+
+                        {/* Card Footer */}
+                        <div className="pt-3.5 border-t border-gray-100 flex items-center justify-between mt-4">
+                          <span className="text-[10px] text-gray-400 font-semibold flex items-center gap-1">
+                            <Smartphone className="w-3.5 h-3.5" />
+                            <span>{user.pushDeviceCount || 0} registered {user.pushDeviceCount === 1 ? "device" : "devices"}</span>
+                          </span>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleEditOpen(user)}
+                              title="Edit Details"
+                              className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition active:scale-95"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleResetOpen(user)}
+                              title="Reset Password"
+                              className="p-1.5 text-gray-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition active:scale-95"
+                            >
+                              <Key className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => toggleUserActiveState(user)}
+                              title={user.isActive ? "Deactivate" : "Activate"}
+                              className={`p-1.5 rounded-lg transition active:scale-95 ${
+                                user.isActive 
+                                  ? "text-gray-400 hover:text-red-600 hover:bg-red-50" 
+                                  : "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"
+                              }`}
+                            >
+                              {user.isActive ? <Ban className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

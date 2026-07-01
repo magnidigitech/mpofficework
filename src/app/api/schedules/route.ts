@@ -67,8 +67,8 @@ export async function GET(request: Request) {
       };
     }
 
-    // Role restriction: Field Coordinators only see their assigned schedules
-    const isFieldCoordinatorOnly = roles.includes("Field Coordinator") && !isCoordinator;
+    // Role restriction: Field Coordinators/Staff only see their assigned schedules
+    const isFieldCoordinatorOnly = (roles.includes("Field Coordinator") || roles.includes("Field Staff")) && !isCoordinator;
     if (isFieldCoordinatorOnly) {
       whereFilter.assignments = {
         some: {
@@ -82,7 +82,11 @@ export async function GET(request: Request) {
       where: whereFilter,
       include: {
         visitChecklist: true,
-        socialMediaUpdate: true,
+        socialMediaUpdate: {
+          include: {
+            posts: true,
+          },
+        },
         contacts: true,
         assignments: {
           include: {

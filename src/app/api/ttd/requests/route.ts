@@ -5,6 +5,8 @@ import * as zod from "zod";
 import { generateRequestNumber, getUserRoles } from "@/lib/ttd-utils";
 import { sendNotification } from "@/lib/notification-sender";
 
+export const dynamic = "force-dynamic";
+
 const createRequestSchema = zod.object({
   applicantName: zod.string().min(2, "Applicant name is required"),
   applicantMobile: zod.string().min(10, "Valid mobile number is required"),

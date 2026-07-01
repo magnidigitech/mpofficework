@@ -78,7 +78,7 @@ body {
 }
 
 /* Form best practice styling - min 48px tap targets for input elements on mobile */
-input, select, textarea {
+input:not(.status-select-badge), select:not(.status-select-badge), textarea {
   font-size: 1rem !important; /* Prevents iOS auto-zoom */
   min-height: 48px;
   box-sizing: border-box;
@@ -96,9 +96,33 @@ input:focus, select:focus, textarea:focus {
 }
 
 @media (pointer: coarse) {
-  input, select, textarea, button {
+  input:not(.status-select-badge), select:not(.status-select-badge), textarea {
     min-height: 52px; /* Enhanced tap targets for touch devices */
   }
+}
+
+/* Styled inline status badge dropdown */
+select.status-select-badge {
+  min-height: 22px !important;
+  height: 22px !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  padding: 0 20px 0 8px !important;
+  border-radius: 9999px !important; /* Rounded pill badge */
+  border-width: 1px !important;
+  appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23374151' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7' /%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 8px !important;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.15s ease;
+}
+select.status-select-badge:focus {
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 /* Visually Hidden Helper (strictly accessible) */

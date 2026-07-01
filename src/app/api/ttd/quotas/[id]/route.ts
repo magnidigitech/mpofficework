@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import * as zod from "zod";
 import { getUserRoles } from "@/lib/ttd-utils";
 
+export const dynamic = "force-dynamic";
+
 const updateQuotaSchema = zod.object({
   name: zod.string().optional(),
   startDate: zod.string().optional(),

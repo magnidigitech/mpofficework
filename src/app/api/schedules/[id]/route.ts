@@ -90,9 +90,9 @@ export async function GET(
 
     const isAdmin = roles.includes("Super Admin") || roles.includes("MP Office Admin");
     const isCoordinator = roles.includes("Schedule Coordinator") || isAdmin;
-    const isViewer = roles.includes("Viewer") || roles.includes("Field Coordinator");
+    const isViewer = roles.includes("Viewer") || roles.includes("Field Coordinator") || roles.includes("Field Staff");
 
-    if (roles.includes("Field Coordinator") && !isCoordinator) {
+    if ((roles.includes("Field Coordinator") || roles.includes("Field Staff")) && !isCoordinator) {
       const isAssigned = schedule.assignments.some(
         (a) => a.userId === session.user.id
       );

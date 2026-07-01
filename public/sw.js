@@ -38,6 +38,11 @@ self.addEventListener("activate", (event) => {
 
 // Fetch Event with Network-First strategy for pages, Stale-While-Revalidate for assets
 self.addEventListener("fetch", (event) => {
+  // Bypass service worker fetch interception entirely in local development
+  if (self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1") {
+    return;
+  }
+
   // Only handle GET requests and skip Next.js hot-reloading/API routes
   if (
     event.request.method !== "GET" ||

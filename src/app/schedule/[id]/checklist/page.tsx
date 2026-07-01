@@ -6,7 +6,7 @@ import { db, type OfflineChecklistItem, type PendingChecklistMutation, type Sync
 import { authClient } from "@/lib/auth-client";
 import { 
   Calendar, MapPin, Clock, RefreshCw, AlertTriangle, Shield, CheckCircle2, 
-  Circle, HelpCircle, UserCheck, MessageSquare, AlertCircle, Wifi, WifiOff, Check 
+  Circle, HelpCircle, UserCheck, MessageSquare, AlertCircle, Wifi, WifiOff, Check, Plus 
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -80,7 +80,28 @@ export default function ScheduleChecklistPage() {
   const [editingRemarksId, setEditingRemarksId] = useState<string | null>(null);
   const [remarksInput, setRemarksInput] = useState("");
 
-  const isAdmin = session?.user?.email === "admin@mpoffice.com";
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(true);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const profile = await res.json();
+          setUserRoles(profile.roles || []);
+        }
+      } catch (err) {
+        console.error("Error fetching user profile:", err);
+      } finally {
+        setLoadingRoles(false);
+      }
+    }
+    fetchProfile();
+  }, []);
+
+  const isAdmin = session?.user?.email === "admin@mpoffice.com" || userRoles.includes("Super Admin") || userRoles.includes("MP Office Admin");
+  const canManageAssignment = isAdmin || userRoles.includes("Schedule Coordinator");
 
   // Load Checklist & Offline sync state
   const loadChecklist = async () => {
@@ -232,6 +253,21 @@ export default function ScheduleChecklistPage() {
           await db.pendingChecklistMutations.delete(id);
         }
 
+        // Update local cached checklist item versions so subsequent mutations use correct expectedVersion
+        const cached = await db.cachedChecklists.get(scheduleId);
+        if (cached) {
+          for (const s of results.successful) {
+            const itemIdx = cached.items.findIndex(i => i.id === s.checklistItemId);
+            if (itemIdx !== -1) {
+              cached.items[itemIdx].version = s.version;
+            }
+          }
+          await db.cachedChecklists.put(cached);
+        }
+
+        // Reload checklist to update react state with new versions
+        await loadChecklist();
+
         // 2. Handle conflicts (flag local items)
         if (results.conflicts.length > 0) {
           alert(`Sync complete with ${results.conflicts.length} conflict(s) detected. Please resolve them below.`);
@@ -300,20 +336,39 @@ export default function ScheduleChecklistPage() {
 
     const expectedVersion = targetItem.version;
 
-    // C. Save in Dexie pendingChecklistMutations queue
-    const mutation: PendingChecklistMutation = {
-      clientMutationId,
-      checklistItemId: itemId,
-      visitChecklistId: data.checklistId,
-      scheduleId,
-      mutationType,
-      updatedFields,
-      expectedVersion,
-      clientUpdatedAt: new Date().toISOString(),
-      retryCount: 0,
-      createdAt: new Date().toISOString(),
-    };
-    await db.pendingChecklistMutations.put(mutation);
+    // C. Save or merge in Dexie pendingChecklistMutations queue to prevent duplicate sequential version conflict errors
+    const existing = await db.pendingChecklistMutations
+      .where("checklistItemId")
+      .equals(itemId)
+      .first();
+
+    if (existing) {
+      existing.updatedFields = {
+        ...existing.updatedFields,
+        ...updatedFields,
+      };
+      existing.clientUpdatedAt = new Date().toISOString();
+      if (mutationType === "TOGGLE_COMPLETE" || existing.mutationType === "TOGGLE_COMPLETE") {
+        existing.mutationType = "TOGGLE_COMPLETE";
+      } else {
+        existing.mutationType = mutationType;
+      }
+      await db.pendingChecklistMutations.put(existing);
+    } else {
+      const mutation: PendingChecklistMutation = {
+        clientMutationId,
+        checklistItemId: itemId,
+        visitChecklistId: data.checklistId,
+        scheduleId,
+        mutationType,
+        updatedFields,
+        expectedVersion,
+        clientUpdatedAt: new Date().toISOString(),
+        retryCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+      await db.pendingChecklistMutations.put(mutation);
+    }
 
     // D. Apply Optimistic Updates in Local Cache & State
     const cached = await db.cachedChecklists.get(scheduleId);
@@ -646,130 +701,114 @@ export default function ScheduleChecklistPage() {
                       const isPendingSync = pendingSyncCount > 0; // In reality we'd check if this item has an entry in pending mutations
 
                       return (
-                        <div key={item.id} className="py-4.5 flex flex-col gap-3">
-                          <div className="flex justify-between items-start gap-4">
-                            {/* Checkbox & Title */}
-                            <div className="flex items-start gap-3">
-                              <button
-                                onClick={() => handleToggleItem(item.id, item.isCompleted)}
-                                disabled={isPending}
-                                className="mt-0.5 shrink-0 focus:outline-none"
-                                aria-label={item.isCompleted ? "Mark incomplete" : "Mark completed"}
-                              >
-                                {item.isCompleted ? (
-                                  <CheckCircle2 className="w-5.5 h-5.5 text-primary shrink-0" />
-                                ) : (
-                                  <Circle className="w-5.5 h-5.5 text-gray-300 shrink-0 hover:text-gray-400" />
-                                )}
-                              </button>
-                              
-                              <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <h4 className={`text-sm font-bold text-gray-950 ${
-                                    item.isCompleted ? "line-through text-gray-400" : ""
-                                  }`}>
-                                    {item.title}
-                                  </h4>
-                                  {item.isMandatory && (
-                                    <span className="bg-red-50 text-red-700 border border-red-200 text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded">
-                                      Mandatory
-                                    </span>
-                                  )}
-                                  {hasConflict && (
-                                    <span className="bg-red-100 text-red-800 border border-red-300 text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                      <AlertTriangle className="w-2.5 h-2.5" /> Conflict
-                                    </span>
-                                  )}
-                                </div>
-                                {item.description && (
-                                  <p className="text-xs text-gray-500 mt-1">{item.description}</p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Completed Details */}
-                            {item.isCompleted && item.completedBy && (
-                              <div className="text-right shrink-0 hidden sm:block">
-                                <p className="text-[10px] font-bold text-gray-400">Completed By</p>
-                                <p className="text-xs font-semibold text-gray-700 mt-0.5">{item.completedBy.name}</p>
-                                {item.completedAt && (
-                                  <p className="text-[9px] text-gray-400 mt-0.5">
-                                    {new Date(item.completedAt).toLocaleTimeString("en-IN", {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                      timeZone: "Asia/Kolkata",
-                                    })}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Remarks & Staff details rows */}
-                          <div className="pl-8.5 flex flex-wrap gap-4 text-xs text-gray-600 mt-1">
-                            {/* Assigned Staff Dropdown Selection */}
-                            <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded px-2.5 py-1">
-                              <Shield className="w-3.5 h-3.5 text-gray-400" />
-                              <span className="font-semibold text-gray-700">Assignee:</span>
-                              <select
-                                value={item.assignedUserId || ""}
-                                onChange={(e) => handleAssignStaff(item.id, e.target.value || null)}
-                                className="bg-transparent text-gray-800 outline-none cursor-pointer text-xs font-medium"
-                              >
-                                <option value="">Unassigned</option>
-                                {staffCoordinators.map((s) => (
-                                  <option key={s.id} value={s.id}>
-                                    {s.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Remarks display / edit */}
-                            <div className="flex-1 min-w-[200px]">
-                              {editingRemarksId === item.id ? (
-                                <div className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={remarksInput}
-                                    onChange={(e) => setRemarksInput(e.target.value)}
-                                    placeholder="Add remark..."
-                                    className="flex-1 text-xs h-[36px]"
-                                  />
-                                  <button
-                                    onClick={() => handleSaveRemarks(item.id)}
-                                    className="px-3 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700"
-                                  >
-                                    <Check className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingRemarksId(null)}
-                                    className="px-3 bg-gray-100 text-gray-700 border border-gray-200 rounded text-xs font-semibold"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
+                        <div key={item.id} className="py-2.5 flex justify-between items-center gap-4 border-b border-gray-100 last:border-b-0">
+                          {/* Left: Checkbox & Title */}
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <button
+                              onClick={() => handleToggleItem(item.id, item.isCompleted)}
+                              disabled={isPending}
+                              className="mt-0.5 shrink-0 focus:outline-none"
+                              aria-label={item.isCompleted ? "Mark incomplete" : "Mark completed"}
+                            >
+                              {item.isCompleted ? (
+                                <CheckCircle2 className="w-4.5 h-4.5 text-primary shrink-0" />
                               ) : (
-                                <div className="flex items-start gap-2 bg-gray-50 border border-gray-100 rounded px-2.5 py-1">
-                                  <MessageSquare className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-                                  <span className="font-semibold text-gray-700 shrink-0">Remarks:</span>
-                                  <p className="flex-1 text-gray-800 truncate pr-2">
-                                    {item.remarks || "No remarks added"}
-                                  </p>
-                                  <button
-                                    onClick={() => {
-                                      setEditingRemarksId(item.id);
-                                      setRemarksInput(item.remarks || "");
-                                    }}
-                                    className="text-primary hover:underline font-bold text-[10px]"
-                                  >
-                                    Edit
-                                  </button>
-                                </div>
+                                <Circle className="w-4.5 h-4.5 text-gray-300 shrink-0 hover:text-gray-400" />
+                              )}
+                            </button>
+                            
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <h4 className={`text-sm font-bold text-gray-950 whitespace-normal break-words ${
+                                  item.isCompleted ? "line-through text-gray-400" : ""
+                                }`}>
+                                  {item.title}
+                                  {item.isMandatory && (
+                                    <span className="text-red-500 font-black text-sm ml-0.5 align-middle" title="Mandatory" aria-label="Mandatory">
+                                      *
+                                    </span>
+                                  )}
+                                </h4>
+                                {hasConflict && (
+                                  <span className="bg-red-100 text-red-800 border border-red-300 text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0">
+                                    <AlertTriangle className="w-2.5 h-2.5" /> Conflict
+                                  </span>
+                                )}
+                              </div>
+                              {item.description && (
+                                <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
                               )}
                             </div>
                           </div>
 
+                          {/* Right: Completed details & Remarks */}
+                          <div className="shrink-0 flex items-center gap-3">
+                            {/* Completed Details */}
+                            {item.isCompleted && item.completedBy && (
+                              <div className="text-right hidden md:block">
+                                <p className="text-[9px] font-bold text-gray-400">Completed By</p>
+                                <p className="text-xs font-semibold text-gray-700 mt-0.5 leading-none">{item.completedBy.name}</p>
+                              </div>
+                            )}
+
+                            {/* Remarks Block */}
+                            {(item.remarks || editingRemarksId === item.id) ? (
+                              <div className="text-[10px] text-gray-500">
+                                {editingRemarksId === item.id ? (
+                                  <div className="flex gap-1 items-center">
+                                    <input
+                                      type="text"
+                                      value={remarksInput}
+                                      onChange={(e) => setRemarksInput(e.target.value)}
+                                      placeholder="Add remark..."
+                                      className="text-[10px] h-6 px-2 py-0.5 border border-gray-250 rounded focus:outline-none focus:border-emerald-700 bg-white w-32 sm:w-48"
+                                    />
+                                    <button
+                                      onClick={() => handleSaveRemarks(item.id)}
+                                      className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-[9px] cursor-pointer"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingRemarksId(null)}
+                                      className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded font-semibold text-[9px] cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1 bg-gray-50 border border-gray-150 rounded-full px-2 py-0.5">
+                                    <MessageSquare className="w-3 h-3 text-gray-400 shrink-0" />
+                                    <span className="font-bold text-gray-500 shrink-0 hidden sm:inline">Remarks:</span>
+                                    <span className="text-gray-700 font-medium truncate max-w-[100px] sm:max-w-[180px]">{item.remarks}</span>
+                                    <button
+                                      onClick={() => {
+                                        setEditingRemarksId(item.id);
+                                        setRemarksInput(item.remarks || "");
+                                      }}
+                                      className="text-primary hover:underline font-extrabold ml-1 cursor-pointer text-[9px] uppercase tracking-wider"
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              editingRemarksId !== item.id && (
+                                <button
+                                  onClick={() => {
+                                    setEditingRemarksId(item.id);
+                                    setRemarksInput("");
+                                  }}
+                                  className="text-gray-400 hover:text-primary flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider cursor-pointer"
+                                >
+                                  <Plus className="w-2.5 h-2.5" />
+                                  <span>Add Remark</span>
+                                </button>
+                              )
+                            )}
+                          </div>
+                          
                           {/* Version mismatch Conflict resolution Box */}
                           {hasConflict && (
                             <div className="mt-3 ml-8.5 p-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800">

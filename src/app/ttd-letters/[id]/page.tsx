@@ -135,7 +135,7 @@ export default function TTDRequestDetailsPage() {
 
   const loadData = async () => {
     try {
-      const res = await fetch(`/api/ttd/requests/${requestId}`);
+      const res = await fetch(`/api/ttd/requests/${requestId}`, { cache: "no-store" });
       if (res.ok) {
         const body = await res.json();
         setData(body);
@@ -155,7 +155,7 @@ export default function TTDRequestDetailsPage() {
 
   const loadQuotas = async () => {
     try {
-      const res = await fetch("/api/ttd/quotas?active=true");
+      const res = await fetch("/api/ttd/quotas?active=true", { cache: "no-store" });
       if (res.ok) {
         const body = await res.json();
         setQuotas(body);
@@ -191,6 +191,7 @@ export default function TTDRequestDetailsPage() {
           setShowPrepareModal(false);
           setShowReasonModal(null);
           setReasonInput("");
+          router.refresh();
           await loadData();
         } else {
           const errData = await res.json();
@@ -248,7 +249,7 @@ export default function TTDRequestDetailsPage() {
       {/* Header section with back btn */}
       <div className="flex items-center gap-3 mb-6">
         <button
-          onClick={() => router.back()}
+          onClick={() => { window.location.href = "/ttd-letters"; }}
           className="p-2 border border-gray-200 rounded hover:bg-gray-50 transition"
         >
           <ArrowLeft className="w-4 h-4 text-gray-600" />

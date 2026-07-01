@@ -22,7 +22,7 @@ export async function getUserRoles(userId: string): Promise<UserRoles> {
   const isTTDManager = roles.includes("Social Media Team") || roles.includes("TTD Manager") || isOfficeAdmin; // maps standard admin permissions
   const isTTDStaff = roles.includes("TTD Staff") || isTTDManager;
   const isCoordinator = roles.includes("Schedule Coordinator") || isTTDStaff;
-  const isViewer = roles.includes("Viewer") || roles.includes("Field Coordinator") || isCoordinator;
+  const isViewer = roles.includes("Viewer") || roles.includes("Field Coordinator") || roles.includes("Field Staff") || isCoordinator;
 
   return {
     roles,

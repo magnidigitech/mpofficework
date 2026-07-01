@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         // C. Verify authorization
         const isCoordinator = roles.includes("Schedule Coordinator") && 
           (schedule.assignments.some(a => a.userId === session.user.id) || isAdmin);
-        const isStaff = roles.includes("Field Coordinator");
+        const isStaff = roles.includes("Field Coordinator") || roles.includes("Field Staff");
 
         if (roles.includes("Viewer") && !isAdmin) {
           failed.push({

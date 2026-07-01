@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import * as zod from "zod";
 import { getUserRoles, checkDuplicates } from "@/lib/ttd-utils";
 
+export const dynamic = "force-dynamic";
+
 const updateRequestSchema = zod.object({
   applicantName: zod.string().optional(),
   applicantMobile: zod.string().optional(),

@@ -61,7 +61,7 @@ export async function GET(request: Request) {
       where.department = deptFilter;
     }
 
-    if (activeFilter !== null && activeFilter !== undefined) {
+    if (activeFilter === "true" || activeFilter === "false") {
       where.isActive = activeFilter === "true";
     }
 
