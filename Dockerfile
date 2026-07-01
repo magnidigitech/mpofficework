@@ -51,6 +51,9 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Setup persistent directory
+RUN mkdir -p /app/uploads && chown -R nextjs:nodejs /app/uploads
+
 # Copy only runtime compilation output and backend dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
