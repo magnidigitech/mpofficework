@@ -8,7 +8,7 @@ import { hashPassword } from "better-auth/crypto";
 // ADMIN_EMAIL: the initial Super Admin login email
 // ADMIN_PASS : the initial Super Admin password (must change on first login)
 // ─────────────────────────────────────────────────────────────────────────────
-const SEED_KEY   = "mpoffice-seed-Xr7@2026#BRK";
+const SEED_KEY   = "mpoffice-seed-Xr7-2026-BRK";
 const ADMIN_EMAIL = "admin@bhashyamramakrishna.in";
 const ADMIN_PASS  = "BhashyaM@4689";
 
