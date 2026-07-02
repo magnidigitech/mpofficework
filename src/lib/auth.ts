@@ -14,6 +14,10 @@ export const auth = betterAuth({
     max: 20,          // 20 attempts per window
     storage: "memory",
   },
+  trustedOrigins: [
+    "https://admin.bhashyamramakrishna.in",
+    "http://localhost:3000",
+  ],
   user: {
     additionalFields: {
       mobileNumber: {
