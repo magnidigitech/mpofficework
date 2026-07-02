@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as zod from "zod";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { Share, PlusSquare, AlertCircle, ShieldAlert } from "lucide-react";
+import { Share, PlusSquare, AlertCircle, ShieldAlert, Eye, EyeOff } from "lucide-react";
 
 // Form Schema
 const loginSchema = zod.object({
@@ -22,6 +22,8 @@ export default function LoginPage() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
   // Check user-agent and standalone state
   useEffect(() => {
@@ -29,11 +31,23 @@ export default function LoginPage() {
     const isAppleMobile = /iphone|ipad|ipod/.test(ua);
     setIsIos(isAppleMobile);
 
-    const isAppStandalone = 
-      (window.navigator as any).standalone || 
+    const isAppStandalone =
+      (window.navigator as any).standalone ||
       window.matchMedia("(display-mode: standalone)").matches;
     setIsStandalone(isAppStandalone);
   }, []);
+
+  // Cooldown countdown timer after rate limit
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) { clearInterval(timer); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const {
     register,
@@ -44,6 +58,7 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginSchemaInput) => {
+    if (cooldown > 0) return;
     setError(null);
     setLoading(true);
     try {
@@ -55,7 +70,8 @@ export default function LoginPage() {
       if (response.error) {
         const status = response.error.status;
         if (status === 429) {
-          setError("Too many login attempts. Please wait a few minutes before trying again.");
+          setCooldown(60);
+          setError("Too many login attempts. Please wait 60 seconds before trying again.");
         } else if (status === 401 || status === 403) {
           setError("Invalid email or password. Please check your credentials.");
         } else {
@@ -86,7 +102,7 @@ export default function LoginPage() {
             <rect x="165" y="328" width="182" height="15" />
           </svg>
           <h1 className="text-xl font-bold text-gray-900">MP Office Portal</h1>
-          <p className="text-xs text-gray-500 mt-1">Staff Access & Schedule Tracking</p>
+          <p className="text-xs text-gray-500 mt-1">Staff Access &amp; Schedule Tracking</p>
         </div>
 
         {/* Error Alert */}
@@ -125,16 +141,27 @@ export default function LoginPage() {
             <label htmlFor="password" className="text-xs font-semibold text-gray-700 mb-1">
               Password <span className="text-red-500">*</span>
             </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              {...register("password")}
-              className={`w-full ${errors.password ? "border-red-500" : ""}`}
-              disabled={loading}
-              autoComplete="current-password"
-              required
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                {...register("password")}
+                className={`w-full pr-10 ${errors.password ? "border-red-500" : ""}`}
+                disabled={loading}
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
             {errors.password && (
               <span className="text-red-500 text-xs mt-1 flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" />
@@ -145,10 +172,14 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full h-12 bg-primary hover:bg-amber-700 text-white font-medium rounded-md transition duration-150 flex items-center justify-center disabled:opacity-50"
+            disabled={loading || cooldown > 0}
+            className="w-full h-12 bg-primary hover:bg-amber-700 text-white font-medium rounded-md transition duration-150 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Authenticating..." : "Sign In"}
+            {loading
+              ? "Authenticating..."
+              : cooldown > 0
+              ? `Wait ${cooldown}s before retrying`
+              : "Sign In"}
           </button>
         </form>
       </div>
@@ -171,7 +202,7 @@ export default function LoginPage() {
               Scroll down and tap <strong>Add to Home Screen</strong> <PlusSquare className="w-3.5 h-3.5 inline mx-0.5" />.
             </li>
             <li>Launch the portal from your home screen.</li>
-            <li>Log in and tap **Enable Notifications** to get push alerts.</li>
+            <li>Log in and tap Enable Notifications to get push alerts.</li>
           </ol>
         </div>
       )}
