@@ -5,7 +5,10 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Define public routes
-  const isPublicRoute = pathname === "/login" || pathname.startsWith("/api/auth");
+  const isPublicRoute =
+    pathname === "/login" ||
+    pathname.startsWith("/api/auth") ||
+    pathname === "/api/admin/seed";
 
   // Read session cookie (better-auth defaults to "better-auth.session_token")
   const sessionToken = request.cookies.get("better-auth.session_token");
