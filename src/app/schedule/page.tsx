@@ -456,7 +456,11 @@ export default function SchedulePage() {
       case "POSTPONED":
         return "bg-gray-100 text-gray-800 border-gray-300";
       default:
-        return "bg-amber-50 text-amber-800 border-amber-  return (
+        return "bg-amber-50 text-amber-800 border-amber-200";
+    }
+  };
+
+  return (
     <PageLayout>
       {/* Inline Toast Notifications */}
       {toast && (
