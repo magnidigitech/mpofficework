@@ -51,15 +51,22 @@ export default function LoginPage() {
         email: data.email,
         password: data.password,
       });
-      
+
       if (response.error) {
-        setError(response.error.message || "Failed to sign in. Please verify your credentials.");
+        const status = response.error.status;
+        if (status === 429) {
+          setError("Too many login attempts. Please wait a few minutes before trying again.");
+        } else if (status === 401 || status === 403) {
+          setError("Invalid email or password. Please check your credentials.");
+        } else {
+          setError(response.error.message || "Failed to sign in. Please try again.");
+        }
       } else {
         router.push("/");
         router.refresh();
       }
     } catch (err: any) {
-      setError(err?.message || "An unexpected login error occurred.");
+      setError(err?.message || "An unexpected login error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
