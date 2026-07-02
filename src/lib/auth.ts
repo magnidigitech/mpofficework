@@ -9,6 +9,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  rateLimit: {
+    window: 60,       // 60-second window
+    max: 20,          // 20 attempts per window
+    storage: "memory",
+  },
   user: {
     additionalFields: {
       mobileNumber: {

@@ -1,13 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { hashPassword } from "better-auth/crypto";
+
+// ─── Hard-coded bootstrap credentials ────────────────────────────────────────
+// SEED_KEY   : secret token required in ?key= query param to access this route
+// ADMIN_EMAIL: the initial Super Admin login email
+// ADMIN_PASS : the initial Super Admin password (must change on first login)
+// ─────────────────────────────────────────────────────────────────────────────
+const SEED_KEY   = "mpoffice-seed-Xr7@2026#BRK";
+const ADMIN_EMAIL = "admin@bhashyamramakrishna.in";
+const ADMIN_PASS  = "BhashyaM@4689";
 
 export async function GET(req: NextRequest) {
   try {
     const key = req.nextUrl.searchParams.get("key");
-    const expectedKey = process.env.INITIAL_ADMIN_PASSWORD;
 
-    if (!expectedKey || key !== expectedKey) {
+    if (key !== SEED_KEY) {
       return NextResponse.json({ error: "Unauthorized. Invalid seed key." }, { status: 401 });
     }
 
@@ -278,52 +287,63 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 5. Seed Admin User
-    const initAdminEmail = process.env.INITIAL_ADMIN_EMAIL;
-    const initAdminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+    // 5. Seed Admin User via Better Auth (ensures password hash format matches sign-in)
+    let adminUser = await prisma.user.findUnique({ where: { email: ADMIN_EMAIL } });
 
-    if (initAdminEmail && initAdminPassword) {
-      let adminUser = await prisma.user.findUnique({
-        where: { email: initAdminEmail },
+    if (!adminUser) {
+      console.log("[Production API Seed] Creating Super Admin account via Better Auth...");
+
+      // Use Better Auth's own sign-up so the credential hash is always compatible
+      const signUpResult = await auth.api.signUpEmail({
+        body: {
+          name: "Super Admin",
+          email: ADMIN_EMAIL,
+          password: ADMIN_PASS,
+        },
       });
 
-      if (!adminUser) {
-        adminUser = await prisma.user.create({
-          data: {
-            name: "Super Admin",
-            email: initAdminEmail,
-            emailVerified: true,
-            mobileNumber: "9876543210",
-            mustChangePassword: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
+      if (!signUpResult?.user?.id) {
+        throw new Error("Better Auth signUpEmail did not return a user ID.");
+      }
 
-        const hashedPassword = await hashPassword(initAdminPassword);
-        await prisma.account.create({
-          data: {
-            accountId: initAdminEmail,
-            providerId: "credential",
-            userId: adminUser.id,
-            password: hashedPassword,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
+      // Mark email as verified and set mustChangePassword
+      await prisma.user.update({
+        where: { id: signUpResult.user.id },
+        data: {
+          emailVerified: true,
+          mustChangePassword: true,
+          mobileNumber: "9876543210",
+          updatedAt: new Date(),
+        },
+      });
 
-        const superAdminRole = await prisma.role.findUnique({
-          where: { name: "Super Admin" },
-        });
+      adminUser = await prisma.user.findUnique({ where: { id: signUpResult.user.id } });
+    } else {
+      console.log("[Production API Seed] Admin user already exists — skipping user creation.");
 
-        if (superAdminRole) {
-          await prisma.userRole.create({
-            data: {
-              userId: adminUser.id,
-              roleId: superAdminRole.id,
-            },
-          });
-        }
+      // If account password may be wrong format, reset it properly
+      const existingAccount = await prisma.account.findFirst({
+        where: { userId: adminUser.id, providerId: "credential" },
+      });
+      if (existingAccount) {
+        const correctHash = await hashPassword(ADMIN_PASS);
+        await prisma.account.update({
+          where: { id: existingAccount.id },
+          data: { password: correctHash, updatedAt: new Date() },
+        });
+        console.log("[Production API Seed] Password hash refreshed for existing admin.");
+      }
+    }
+
+    // Assign Super Admin role
+    if (adminUser) {
+      const superAdminRole = await prisma.role.findUnique({ where: { name: "Super Admin" } });
+      if (superAdminRole) {
+        await prisma.userRole.upsert({
+          where: { userId_roleId: { userId: adminUser.id, roleId: superAdminRole.id } },
+          update: {},
+          create: { userId: adminUser.id, roleId: superAdminRole.id },
+        });
       }
     }
 
