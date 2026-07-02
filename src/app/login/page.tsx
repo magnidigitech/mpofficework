@@ -78,8 +78,8 @@ export default function LoginPage() {
           setError(response.error.message || "Failed to sign in. Please try again.");
         }
       } else {
-        router.push("/");
-        router.refresh();
+        // Hard redirect so the browser re-sends all fresh session cookies
+        window.location.href = "/";
       }
     } catch (err: any) {
       setError(err?.message || "An unexpected login error occurred. Please try again.");

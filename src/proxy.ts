@@ -1,29 +1,46 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { auth } from "./lib/auth";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Define public routes
+  // Define public routes that never require authentication
   const isPublicRoute =
     pathname === "/login" ||
+    pathname === "/offline" ||
     pathname.startsWith("/api/auth") ||
-    pathname === "/api/admin/seed";
+    pathname.startsWith("/api/health") ||
+    pathname === "/api/admin/seed" ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/icons") ||
+    pathname === "/manifest.json" ||
+    pathname === "/sw.js" ||
+    pathname.startsWith("/workbox-");
 
-  // Read session cookie (better-auth defaults to "better-auth.session_token")
-  const sessionToken = request.cookies.get("better-auth.session_token");
-
-  if (!sessionToken && !isPublicRoute) {
-    // Redirect to login if trying to access protected route without session
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (isPublicRoute) {
+    return NextResponse.next();
   }
 
-  if (sessionToken && pathname === "/login") {
-    // Redirect to home dashboard if already logged in
-    return NextResponse.redirect(new URL("/", request.url));
-  }
+  // Use Better Auth's server-side session check (reads all auth cookies correctly)
+  try {
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
 
-  return NextResponse.next();
+    if (!session) {
+      // Not authenticated — redirect to login
+      const loginUrl = new URL("/login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Authenticated — allow through
+    return NextResponse.next();
+  } catch {
+    // If session check fails for any reason, redirect to login
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
+  }
 }
 
 export const config = {
@@ -32,8 +49,7 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - manifests, worker files, images
+     * - favicon.ico, manifest.json, sw.js, workbox, icons (PWA assets)
      */
     "/((?!_next/static|_next/image|favicon.ico|manifest.json|sw.js|workbox-.*|icons/|logo.png).*)",
   ],
