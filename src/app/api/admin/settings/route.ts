@@ -20,6 +20,7 @@ const SETTING_VALIDATORS: Record<string, z.ZodTypeAny> = {
   default_reminder_times: stringSchema.regex(/^(\d+,)*\d+$/),
   allow_checklist_override: booleanSchema,
   default_schedule_categories: stringSchema,
+  whatsapp_status_update_template: stringSchema,
 
   // SOCIAL MEDIA
   default_required_platforms: stringSchema,

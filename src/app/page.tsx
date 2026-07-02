@@ -385,7 +385,7 @@ export default function Dashboard() {
                         minute: "2-digit",
                         timeZone: "Asia/Kolkata",
                       })}{" "}
-                      ({new Date(nextVisit.startAt).toLocaleDateString("en-IN")})
+                      ({new Date(nextVisit.startAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })})
                     </span>
                   </div>
                 </div>

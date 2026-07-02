@@ -204,7 +204,8 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
     setSuccess(null);
     
     // Default endAt to 1 hour after startAt if not specified
-    if (!data.endAt && data.startAt) {
+    let finalEndAt = data.endAt;
+    if (!finalEndAt && data.startAt) {
       const startVal = new Date(data.startAt);
       const endVal = new Date(startVal.getTime() + 60 * 60 * 1000); // +1 hour
       const year = endVal.getFullYear();
@@ -212,8 +213,20 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
       const day = String(endVal.getDate()).padStart(2, "0");
       const hours = String(endVal.getHours()).padStart(2, "0");
       const mins = String(endVal.getMinutes()).padStart(2, "0");
-      data.endAt = `${year}-${month}-${day}T${hours}:${mins}`;
+      finalEndAt = `${year}-${month}-${day}T${hours}:${mins}`;
     }
+
+    const formatPayloadDate = (dt: string) => {
+      if (!dt) return dt;
+      if (dt.includes("+") || dt.endsWith("Z")) return dt;
+      return `${dt}:00+05:30`;
+    };
+
+    const payload = {
+      ...data,
+      startAt: formatPayloadDate(data.startAt),
+      endAt: formatPayloadDate(finalEndAt || ""),
+    };
 
     startTransition(async () => {
       try {
@@ -223,7 +236,7 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
         const res = await fetch(url, {
           method,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+          body: JSON.stringify(payload),
         });
 
         if (res.ok) {
