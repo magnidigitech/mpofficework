@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { db, type OfflineSchedule, type OfflineContact } from "@/lib/db";
 import { authClient } from "@/lib/auth-client";
@@ -31,21 +32,36 @@ interface ScheduleWithRelations extends OfflineSchedule {
 }
 
 export default function SchedulePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
   const [schedules, setSchedules] = useState<ScheduleWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
-  const [activeTab, setActiveTab] = useState<"today" | "tomorrow" | "weekly" | "all">(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab")?.toLowerCase();
-      if (tabParam && ["today", "tomorrow", "weekly", "all"].includes(tabParam)) {
-        return tabParam as any;
-      }
+
+  const VALID_TABS = ["today", "tomorrow", "weekly", "all"] as const;
+  type Tab = typeof VALID_TABS[number];
+
+  const tabFromUrl = searchParams.get("tab")?.toLowerCase() as Tab | null;
+  const [activeTab, setActiveTab] = useState<Tab>(
+    tabFromUrl && VALID_TABS.includes(tabFromUrl) ? tabFromUrl : "today"
+  );
+
+  // Sync activeTab when URL ?tab param changes (e.g. back/forward navigation)
+  useEffect(() => {
+    const t = searchParams.get("tab")?.toLowerCase() as Tab | null;
+    if (t && VALID_TABS.includes(t) && t !== activeTab) {
+      setActiveTab(t);
     }
-    return "today";
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    router.replace(`/schedule?tab=${tab}`, { scroll: false });
+  };
+
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editScheduleId, setEditScheduleId] = useState<string | null>(null);
@@ -360,7 +376,7 @@ export default function SchedulePage() {
         {(["today", "tomorrow", "weekly", "all"] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => handleTabChange(tab)}
             className={`flex-1 min-w-[80px] py-3 text-xs font-bold border-b-2 uppercase tracking-wide transition ${
               activeTab === tab
                 ? "border-primary text-primary"

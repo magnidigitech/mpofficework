@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { authClient } from "@/lib/auth-client";
 import { 
@@ -9,8 +10,31 @@ import {
 } from "lucide-react";
 
 export default function ReportsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
-  const [activeTab, setActiveTab] = useState("schedules");
+
+  const VALID_REPORT_TABS = ["schedules", "checklists", "social-media", "ttd/requests", "ttd/quotas", "staff-activity"];
+  const tabFromUrl = searchParams.get("tab") ?? "schedules";
+  const [activeTab, setActiveTab] = useState(
+    VALID_REPORT_TABS.includes(tabFromUrl) ? tabFromUrl : "schedules"
+  );
+
+  // Sync tab when URL changes
+  useEffect(() => {
+    const t = searchParams.get("tab") ?? "schedules";
+    if (VALID_REPORT_TABS.includes(t) && t !== activeTab) {
+      setActiveTab(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    setReportData(null);
+    setPage(1);
+    router.replace(`/reports?tab=${tabId}`, { scroll: false });
+  };
 
   // Filter states
   const [datePreset, setDatePreset] = useState("this_month");
@@ -319,11 +343,7 @@ export default function ReportsPage() {
           return (
             <button
               key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setReportData(null);
-                setPage(1);
-              }}
+              onClick={() => handleTabChange(tab.id)}
               className={`flex items-center gap-2 py-3 px-4 font-bold text-xs border-b-2 transition whitespace-nowrap focus:outline-none ${
                 isActive 
                   ? "border-emerald-700 text-emerald-800" 

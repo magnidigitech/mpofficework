@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { authClient } from "@/lib/auth-client";
 import { 
@@ -41,8 +42,28 @@ interface TTDRequestListEntry {
 }
 
 export default function TTDLettersDashboard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "requests" | "quotas">("dashboard");
+
+  const VALID_TTD_TABS = ["dashboard", "requests", "quotas"] as const;
+  type TTDTab = typeof VALID_TTD_TABS[number];
+  const tabFromUrl = searchParams.get("tab") as TTDTab | null;
+  const [activeTab, setActiveTab] = useState<TTDTab>(
+    tabFromUrl && VALID_TTD_TABS.includes(tabFromUrl) ? tabFromUrl : "dashboard"
+  );
+
+  useEffect(() => {
+    const t = searchParams.get("tab") as TTDTab | null;
+    if (t && VALID_TTD_TABS.includes(t) && t !== activeTab) setActiveTab(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const handleTabChange = (tab: TTDTab) => {
+    setActiveTab(tab);
+    router.replace(`/ttd-letters?tab=${tab}`, { scroll: false });
+  };
+
   const [isPending, startTransition] = useTransition();
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -276,7 +297,7 @@ export default function TTDLettersDashboard() {
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6 bg-white p-1 rounded-lg shadow-sm">
         <button
-          onClick={() => setActiveTab("dashboard")}
+          onClick={() => handleTabChange("dashboard")}
           className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition ${
             activeTab === "dashboard" ? "bg-primary text-white" : "text-gray-600 hover:bg-gray-50"
           }`}
@@ -284,7 +305,7 @@ export default function TTDLettersDashboard() {
           TTD Dashboard
         </button>
         <button
-          onClick={() => setActiveTab("requests")}
+          onClick={() => handleTabChange("requests")}
           className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition ${
             activeTab === "requests" ? "bg-primary text-white" : "text-gray-600 hover:bg-gray-50"
           }`}
@@ -292,7 +313,7 @@ export default function TTDLettersDashboard() {
           Requests Catalog ({totalRequests})
         </button>
         <button
-          onClick={() => setActiveTab("quotas")}
+          onClick={() => handleTabChange("quotas")}
           className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition ${
             activeTab === "quotas" ? "bg-primary text-white" : "text-gray-600 hover:bg-gray-50"
           }`}
