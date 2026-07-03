@@ -703,11 +703,19 @@ export default function SchedulePage() {
                 <div className="mt-2.5 space-y-1.5 text-[11px] text-gray-600 font-sans border-t border-gray-100 pt-2.5">
                   {/* Contacts */}
                   {schedule.contacts.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-gray-500">Contacts:</span>
-                      {schedule.contacts.map((contact, cIdx) => (
-                        <span key={contact.id} className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded text-[10px] text-gray-700">
-                          <span>{contact.name} ({contact.phone})</span>
+                      {schedule.contacts.map((contact) => (
+                        <div key={contact.id} className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-lg text-[10px] text-gray-700">
+                          <span className="font-bold">{contact.name}</span>
+                          <span className="text-gray-300">|</span>
+                          <a
+                            href={`tel:${contact.phone}`}
+                            className="p-0.5 text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded transition"
+                            title={`Call ${contact.name}`}
+                          >
+                            <Phone className="w-3 h-3 inline" />
+                          </a>
                           <a
                             href={`https://api.whatsapp.com/send?phone=${contact.phone.replace(/[^0-9]/g, "")}&text=${encodeURIComponent(
                               whatsappTemplate
@@ -720,12 +728,12 @@ export default function SchedulePage() {
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-emerald-600 hover:text-emerald-700 ml-0.5"
-                            title="Message on WhatsApp"
+                            className="p-0.5 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded transition"
+                            title={`WhatsApp ${contact.name}`}
                           >
-                            <WhatsAppIcon className="w-3 h-3 text-emerald-600 inline" />
+                            <WhatsAppIcon className="w-3 h-3 inline" />
                           </a>
-                        </span>
+                        </div>
                       ))}
                     </div>
                   )}
