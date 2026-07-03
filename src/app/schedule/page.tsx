@@ -706,15 +706,15 @@ export default function SchedulePage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-gray-500">Contacts:</span>
                       {schedule.contacts.map((contact) => (
-                        <div key={contact.id} className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-lg text-[10px] text-gray-700">
-                          <span className="font-bold">{contact.name}</span>
+                        <div key={contact.id} className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-lg text-[11px] text-gray-800">
+                          <span className="font-bold">{contact.name} ({contact.phone})</span>
                           <span className="text-gray-300">|</span>
                           <a
                             href={`tel:${contact.phone}`}
-                            className="p-0.5 text-sky-600 hover:text-sky-800 hover:bg-sky-50 rounded transition"
+                            className="p-1 text-sky-600 hover:text-sky-800 hover:bg-sky-100 rounded transition flex items-center justify-center"
                             title={`Call ${contact.name}`}
                           >
-                            <Phone className="w-3 h-3 inline" />
+                            <Phone className="w-3.5 h-3.5" />
                           </a>
                           <a
                             href={`https://api.whatsapp.com/send?phone=${contact.phone.replace(/[^0-9]/g, "")}&text=${encodeURIComponent(
@@ -728,10 +728,10 @@ export default function SchedulePage() {
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-0.5 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded transition"
+                            className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded transition flex items-center justify-center"
                             title={`WhatsApp ${contact.name}`}
                           >
-                            <WhatsAppIcon className="w-3 h-3 inline" />
+                            <WhatsAppIcon className="w-3.5 h-3.5" />
                           </a>
                         </div>
                       ))}
