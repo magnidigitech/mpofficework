@@ -105,7 +105,30 @@ export default function TTDLettersDashboard() {
   const [adjustReason, setAdjustReason] = useState("");
   const [adjustError, setAdjustError] = useState<string | null>(null);
 
-  const isAdmin = session?.user?.email === "admin@mpoffice.com";
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+
+  // Load user roles
+  useEffect(() => {
+    async function loadRoles() {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const profile = await res.json();
+          setUserRoles(profile.roles || []);
+        }
+      } catch (err) {
+        console.error("Failed to load user roles:", err);
+      }
+    }
+    loadRoles();
+  }, []);
+
+  const isAdmin = 
+    session?.user?.email === "admin@mpoffice.com" || 
+    session?.user?.email === "admin@bhashyamramakrishna.in" || 
+    userRoles.includes("Super Admin") || 
+    userRoles.includes("MP Office Admin") || 
+    userRoles.includes("TTD Manager");
 
   const fetchMetrics = async () => {
     try {
@@ -269,120 +292,154 @@ export default function TTDLettersDashboard() {
 
   return (
     <PageLayout>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      {/* Title Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-sans">TTD VIP Recommendation Letters</h1>
-          <p className="text-xs text-gray-500 mt-1">Manage ticket allocations, verification reviews, and letter distributions</p>
+          <h1 className="text-xl font-bold text-gray-900 font-sans flex items-center gap-2">
+            <Award className="w-5 h-5 text-primary" />
+            <span>TTD VIP Recommendation Letters</span>
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">Manage ticket allocations, verification reviews, and letter distributions</p>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={async () => {
               await Promise.all([fetchMetrics(), fetchRequests(), fetchQuotas()]);
             }}
-            className="flex items-center justify-center gap-2 px-4.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium rounded-md shadow-sm transition text-sm w-full md:w-auto"
+            className="flex items-center justify-center p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition text-gray-700 shadow-sm"
+            aria-label="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Sync / Refresh</span>
           </button>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center justify-center gap-2 px-4.5 py-2.5 bg-primary hover:bg-amber-700 text-white font-medium rounded-md shadow-sm transition text-sm w-full md:w-auto cursor-pointer focus:outline-none"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-amber-700 text-white font-medium rounded-lg shadow-sm transition text-xs focus:outline-none"
           >
-            <Plus className="w-4 h-4" />
-            <span>+ Add New</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add New Request</span>
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6 bg-white p-1 rounded-lg shadow-sm">
-        <button
-          onClick={() => handleTabChange("dashboard")}
-          className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition ${
-            activeTab === "dashboard" ? "bg-primary text-white" : "text-gray-600 hover:bg-gray-50"
-          }`}
-        >
-          TTD Dashboard
-        </button>
-        <button
-          onClick={() => handleTabChange("requests")}
-          className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition ${
-            activeTab === "requests" ? "bg-primary text-white" : "text-gray-600 hover:bg-gray-50"
-          }`}
-        >
-          Requests Catalog ({totalRequests})
-        </button>
-        <button
-          onClick={() => handleTabChange("quotas")}
-          className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition ${
-            activeTab === "quotas" ? "bg-primary text-white" : "text-gray-600 hover:bg-gray-50"
-          }`}
-        >
-          Quotas Period ({quotas.length})
-        </button>
+      {/* Segmented Tabs */}
+      <div className="flex border-b border-gray-200 mb-6 bg-white rounded-lg shadow-xs overflow-x-auto">
+        {[
+          { id: "dashboard", label: "TTD Dashboard" },
+          { id: "requests", label: `Requests Catalog (${totalRequests})` },
+          { id: "quotas", label: `Quotas Period (${quotas.length})` }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => handleTabChange(tab.id as any)}
+            className={`flex-1 min-w-[100px] py-3 text-xs font-bold border-b-2 uppercase tracking-wider transition ${
+              activeTab === tab.id
+                ? "border-primary text-primary"
+                : "border-transparent text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* 1. TTD DASHBOARD TAB */}
       {activeTab === "dashboard" && (
         <div className="space-y-6">
           {loadingMetrics ? (
-            <div className="text-center py-12 text-sm text-gray-500 font-sans">Loading dashboard metrics...</div>
+            <div className="text-center py-12 text-xs text-gray-500 font-sans">Loading dashboard metrics...</div>
           ) : (
             <>
               {/* Metrics cards grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm text-center">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase">Available Letters</p>
-                  <p className="text-2xl font-black text-gray-900 mt-1">{metrics?.ttdQuotaAvailable || 0}</p>
+                {/* Card 1: Available Letters */}
+                <div className="bg-white border border-indigo-100 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Available Letters</span>
+                    <p className="text-xl font-black text-indigo-950 mt-1">{metrics?.ttdQuotaAvailable || 0}</p>
+                  </div>
+                  <div className="p-2.5 bg-indigo-50/50 rounded-lg text-indigo-600">
+                    <Award className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm text-center">
-                  <p className="text-[10px] font-bold text-emerald-500 uppercase">Distributed Slots</p>
-                  <p className="text-2xl font-black text-emerald-700 mt-1">{metrics?.ttdQuotaUsed || 0}</p>
+
+                {/* Card 2: Distributed Slots */}
+                <div className="bg-white border border-emerald-100 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide">Distributed Slots</span>
+                    <p className="text-xl font-black text-emerald-950 mt-1">{metrics?.ttdQuotaUsed || 0}</p>
+                  </div>
+                  <div className="p-2.5 bg-emerald-50/50 rounded-lg text-emerald-600">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm text-center">
-                  <p className="text-[10px] font-bold text-amber-500 uppercase">New Requests</p>
-                  <p className="text-2xl font-black text-amber-700 mt-1">{metrics?.ttdNewRequests || 0}</p>
+
+                {/* Card 3: New Requests */}
+                <div className="bg-white border border-amber-100 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">New Requests</span>
+                    <p className="text-xl font-black text-amber-950 mt-1">{metrics?.ttdNewRequests || 0}</p>
+                  </div>
+                  <div className="p-2.5 bg-amber-50/50 rounded-lg text-amber-600">
+                    <FileText className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm text-center">
-                  <p className="text-[10px] font-bold text-purple-500 uppercase">Verified Awaiting approval</p>
-                  <p className="text-2xl font-black text-purple-700 mt-1">{metrics?.ttdAwaitingApproval || 0}</p>
+
+                {/* Card 4: Verified Awaiting approval */}
+                <div className="bg-white border border-purple-100 rounded-xl p-4 shadow-sm flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-purple-500 uppercase tracking-wide">Awaiting Approval</span>
+                    <p className="text-xl font-black text-purple-950 mt-1">{metrics?.ttdAwaitingApproval || 0}</p>
+                  </div>
+                  <div className="p-2.5 bg-purple-50/50 rounded-lg text-purple-600">
+                    <Clock className="w-4 h-4" />
+                  </div>
                 </div>
               </div>
 
               {/* Warning notifications banner */}
               {metrics?.ttdLowQuotaWarning && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex gap-2 items-center">
-                  <AlertTriangle className="w-5 h-5 shrink-0" />
-                  <span><strong>Low Ticket Quota Alert:</strong> The total available ticket letters count has dropped below 5. Register additional quota periods or request reallocation adjustments!</span>
+                <div className="p-4 bg-red-50/50 border-l-4 border-red-500 rounded-xl text-red-800 text-xs flex gap-3 items-center shadow-xs">
+                  <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                  <span>
+                    <strong className="font-bold">Low Ticket Quota Alert:</strong> The total available ticket letters count has dropped below 5. Register additional quota periods or request reallocation adjustments!
+                  </span>
                 </div>
               )}
 
-              {/* Urgent checklists list */}
-              <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-                <h2 className="text-sm font-bold text-gray-900 border-b border-gray-100 pb-3 mb-4 uppercase tracking-wider flex items-center gap-1.5">
+              {/* Action Panels */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                <h2 className="text-xs font-bold text-gray-900 border-b border-gray-100 pb-3 mb-4 uppercase tracking-wider flex items-center gap-1.5">
                   <AlertCircle className="w-4 h-4 text-primary" /> Urgent Recommendation Actions
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-xs font-bold text-gray-700 mb-2.5">Requests Awaiting Verification ({metrics?.ttdNewRequests || 0})</h3>
-                    <p className="text-xs text-gray-400">Review new walk-ins, phone calls, or referrals to verify identity documents and check duplicate warning logs.</p>
+                  <div className="bg-gray-50/50 p-4 border border-gray-100 rounded-xl">
+                    <h3 className="text-xs font-bold text-gray-800 mb-1 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+                      <span>Requests Awaiting Verification ({metrics?.ttdNewRequests || 0})</span>
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1 font-sans leading-relaxed">Review new walk-ins, phone calls, or referrals to verify identity documents and check duplicate warning logs.</p>
                     <button
-                      onClick={() => { setActiveTab("requests"); setStatusFilter("REQUESTED"); }}
-                      className="mt-3.5 inline-block text-xs font-bold text-primary hover:underline"
+                      onClick={() => { setStatusFilter("REQUESTED"); setActiveTab("requests"); }}
+                      className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
                     >
-                      Process Pending Verification &rarr;
+                      <span>Process Pending Verification</span>
+                      <span>&rarr;</span>
                     </button>
                   </div>
 
-                  <div>
-                    <h3 className="text-xs font-bold text-gray-700 mb-2.5">Awaiting Quota Approval ({metrics?.ttdAwaitingApproval || 0})</h3>
-                    <p className="text-xs text-gray-400">Verified recommendations requiring quotaPeriod lock-in by Supervisors or Office Admins to reserve tickets.</p>
+                  <div className="bg-gray-50/50 p-4 border border-gray-100 rounded-xl">
+                    <h3 className="text-xs font-bold text-gray-800 mb-1 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-500 inline-block"></span>
+                      <span>Awaiting Quota Approval ({metrics?.ttdAwaitingApproval || 0})</span>
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1 font-sans leading-relaxed">Verified recommendations requiring quotaPeriod lock-in by Supervisors or Office Admins to reserve tickets.</p>
                     <button
-                      onClick={() => { setActiveTab("requests"); setStatusFilter("VERIFIED"); }}
-                      className="mt-3.5 inline-block text-xs font-bold text-primary hover:underline"
+                      onClick={() => { setStatusFilter("VERIFIED"); setActiveTab("requests"); }}
+                      className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
                     >
-                      Approve Tickets &rarr;
+                      <span>Approve Tickets</span>
+                      <span>&rarr;</span>
                     </button>
                   </div>
                 </div>
@@ -396,7 +453,7 @@ export default function TTDLettersDashboard() {
       {activeTab === "requests" && (
         <div className="space-y-4">
           {/* Filters Bar */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm space-y-3">
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
             <div className="flex gap-2">
               <div className="flex-1 relative">
                 <input
@@ -404,13 +461,13 @@ export default function TTDLettersDashboard() {
                   placeholder="Search applicant name, mobile number, or request ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 text-xs h-10 w-full"
+                  className="pl-9 text-xs h-10 w-full rounded-lg border border-gray-200 focus:outline-none focus:border-primary"
                 />
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
               </div>
               <button
                 onClick={fetchRequests}
-                className="px-4 bg-primary hover:bg-amber-700 text-white rounded text-xs font-bold transition h-10"
+                className="px-4 bg-primary hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition h-10"
               >
                 Search
               </button>
@@ -420,7 +477,7 @@ export default function TTDLettersDashboard() {
               <select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value); setReqPage(1); }}
-                className="text-xs border border-gray-200 rounded px-2 h-9 bg-white"
+                className="text-xs border border-gray-200 rounded-lg px-2.5 h-9 bg-white focus:outline-none focus:border-primary"
               >
                 <option value="">All Statuses</option>
                 <option value="REQUESTED">Requested</option>
@@ -439,7 +496,7 @@ export default function TTDLettersDashboard() {
               <select
                 value={verFilter}
                 onChange={(e) => { setVerFilter(e.target.value); setReqPage(1); }}
-                className="text-xs border border-gray-200 rounded px-2 h-9 bg-white"
+                className="text-xs border border-gray-200 rounded-lg px-2.5 h-9 bg-white focus:outline-none focus:border-primary"
               >
                 <option value="">Verification Status</option>
                 <option value="NOT_STARTED">Not Started</option>
@@ -451,7 +508,7 @@ export default function TTDLettersDashboard() {
               <select
                 value={docFilter}
                 onChange={(e) => { setDocFilter(e.target.value); setReqPage(1); }}
-                className="text-xs border border-gray-200 rounded px-2 h-9 bg-white"
+                className="text-xs border border-gray-200 rounded-lg px-2.5 h-9 bg-white focus:outline-none focus:border-primary"
               >
                 <option value="">Documents Status</option>
                 <option value="NOT_SUBMITTED">Not Submitted</option>
@@ -464,7 +521,7 @@ export default function TTDLettersDashboard() {
               <select
                 value={quotaFilter}
                 onChange={(e) => { setQuotaFilter(e.target.value); setReqPage(1); }}
-                className="text-xs border border-gray-200 rounded px-2 h-9 bg-white"
+                className="text-xs border border-gray-200 rounded-lg px-2.5 h-9 bg-white focus:outline-none focus:border-primary"
               >
                 <option value="">Quota Period</option>
                 {quotas.map((q) => (
@@ -476,47 +533,58 @@ export default function TTDLettersDashboard() {
 
           {/* List catalog entries */}
           {loadingRequests ? (
-            <div className="text-center py-12 text-sm text-gray-500 font-sans">Loading request lists...</div>
+            <div className="text-center py-12 text-xs text-gray-500 font-sans">Loading request lists...</div>
           ) : requests.length === 0 ? (
-            <div className="bg-white border border-dashed border-gray-300 rounded-lg p-12 text-center text-xs text-gray-400">
+            <div className="bg-white border border-dashed border-gray-300 rounded-xl p-12 text-center text-xs text-gray-400 font-semibold font-sans">
               No matching TTD letter request records found.
             </div>
           ) : (
             <div className="space-y-3.5">
               {requests.map((req) => (
-                <div key={req.id} className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex flex-col justify-between">
+                <div key={req.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col justify-between">
                   <div className="flex justify-between items-start gap-4 flex-wrap pb-3.5 border-b border-gray-50">
                     <div>
-                      <span className="text-[10px] font-black uppercase text-gray-400">ID: {req.requestNumber}</span>
-                      <h3 className="font-bold text-gray-950 text-sm mt-1">{req.applicantName}</h3>
+                      <span className="text-[9px] font-bold uppercase text-gray-400 bg-gray-150 px-2 py-0.5 rounded-md">ID: {req.requestNumber}</span>
+                      <h3 className="font-bold text-gray-900 text-sm mt-2">{req.applicantName}</h3>
                       <p className="text-xs text-gray-500 font-mono mt-0.5">{req.applicantMobile}</p>
                     </div>
 
-                    <div className="flex flex-col gap-1 items-end">
-                      <span className={`text-[10px] px-2 py-0.5 border rounded uppercase font-black ${getStatusColor(req.status)}`}>
+                    <div className="flex flex-col gap-1.5 items-end">
+                      <span className={`text-[9px] px-2 py-0.5 border rounded-full uppercase font-bold tracking-wide ${getStatusColor(req.status)}`}>
                         {req.status}
                       </span>
                       {req.letterNumber && (
-                        <span className="text-[9px] font-semibold text-gray-500">Letter: {req.letterNumber}</span>
+                        <span className="text-[10px] font-semibold text-gray-500 bg-gray-50 border border-gray-150 px-1.5 py-0.5 rounded">Letter: {req.letterNumber}</span>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center mt-3.5 flex-wrap gap-2 text-xs">
-                    <div className="flex gap-4 text-gray-600">
-                      <div>
-                        <span className="font-semibold">Darshan:</span> {new Date(req.preferredDarshanDate).toLocaleDateString("en-IN")}
+                  <div className="flex justify-between items-center mt-3 flex-wrap gap-2 text-xs text-gray-600">
+                    <div className="flex gap-4 text-gray-500 font-sans font-medium text-[11px]">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                        <span>Darshan:</span> 
+                        <span className="text-gray-800 font-semibold">
+                          {new Date(req.preferredDarshanDate).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            timeZone: "Asia/Kolkata",
+                          })}
+                        </span>
                       </div>
-                      <div>
-                        <span className="font-semibold">Pilgrims:</span> {req.numberOfMembers}
+                      <div className="flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-gray-400" />
+                        <span>Pilgrims:</span> 
+                        <span className="text-gray-800 font-semibold">{req.numberOfMembers}</span>
                       </div>
                     </div>
 
                     <Link
                       href={`/ttd-letters/${req.id}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 rounded text-xs font-bold transition"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-lg text-[10px] font-bold transition"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-3.5 h-3.5 text-gray-500" />
                       <span>Review Details</span>
                     </Link>
                   </div>
@@ -529,17 +597,17 @@ export default function TTDLettersDashboard() {
                   <button
                     onClick={() => setReqPage(Math.max(1, reqPage - 1))}
                     disabled={reqPage === 1}
-                    className="p-2 border border-gray-200 bg-white rounded disabled:opacity-40"
+                    className="p-2 border border-gray-200 bg-white rounded-lg disabled:opacity-40 hover:bg-gray-50 transition shadow-xs"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-4 h-4 text-gray-700" />
                   </button>
                   <span className="text-xs font-bold text-gray-500">Page {reqPage} of {reqPages}</span>
                   <button
                     onClick={() => setReqPage(Math.min(reqPages, reqPage + 1))}
                     disabled={reqPage === reqPages}
-                    className="p-2 border border-gray-200 bg-white rounded disabled:opacity-40"
+                    className="p-2 border border-gray-200 bg-white rounded-lg disabled:opacity-40 hover:bg-gray-50 transition shadow-xs"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4 text-gray-700" />
                   </button>
                 </div>
               )}
@@ -552,11 +620,11 @@ export default function TTDLettersDashboard() {
       {activeTab === "quotas" && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-sm font-bold text-gray-900 uppercase">Quota Allocation Master</h2>
+            <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Quota Allocation Master</h2>
             {isAdmin && (
               <button
                 onClick={() => setShowQuotaModal(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-primary hover:bg-amber-700 text-white rounded text-xs font-semibold"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-primary hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-sm transition focus:outline-none"
               >
                 <Plus className="w-3.5 h-3.5" /> Allocate Period
               </button>
@@ -564,9 +632,9 @@ export default function TTDLettersDashboard() {
           </div>
 
           {loadingQuotas ? (
-            <div className="text-center py-12 text-sm text-gray-500 font-sans">Loading quotas periods...</div>
+            <div className="text-center py-12 text-xs text-gray-500 font-sans">Loading quotas periods...</div>
           ) : quotas.length === 0 ? (
-            <div className="bg-white border border-dashed border-gray-300 rounded-lg p-12 text-center text-xs text-gray-400">
+            <div className="bg-white border border-dashed border-gray-300 rounded-xl p-12 text-center text-xs text-gray-400 font-semibold font-sans">
               No quota periods allocated. Click Allocate Period to add.
             </div>
           ) : (
@@ -574,43 +642,63 @@ export default function TTDLettersDashboard() {
               {quotas.map((q) => {
                 const av = q.allocatedLetters - q.reservedLetters - q.issuedLetters;
                 return (
-                  <div key={q.id} className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm flex flex-col justify-between">
+                  <div key={q.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col justify-between">
                     <div>
-                      <div className="flex justify-between items-start mb-3">
-                        <h3 className="font-bold text-gray-950 text-sm">{q.name}</h3>
-                        <span className={`text-[10px] px-2 py-0.5 border rounded uppercase font-black ${
+                      <div className="flex justify-between items-start mb-3.5">
+                        <h3 className="font-bold text-gray-900 text-sm leading-tight">{q.name}</h3>
+                        <span className={`text-[9px] px-2 py-0.5 border rounded-full uppercase font-bold tracking-wide ${
                           q.isActive ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-gray-50 text-gray-500 border-gray-200"
                         }`}>
                           {q.isActive ? "Active" : "Inactive"}
                         </span>
                       </div>
 
-                      <div className="text-xs text-gray-500 space-y-1">
-                        <p>Start: {new Date(q.startDate).toLocaleDateString("en-IN")}</p>
-                        <p>End: {new Date(q.endDate).toLocaleDateString("en-IN")}</p>
+                      <div className="text-[11px] text-gray-500 space-y-1 font-sans font-medium">
+                        <p>
+                          <span className="text-gray-400">Start:</span>{" "}
+                          <span className="text-gray-700 font-semibold">
+                            {new Date(q.startDate).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              timeZone: "Asia/Kolkata",
+                            })}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="text-gray-400">End:</span>{" "}
+                          <span className="text-gray-700 font-semibold">
+                            {new Date(q.endDate).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              timeZone: "Asia/Kolkata",
+                            })}
+                          </span>
+                        </p>
                       </div>
 
                       <div className="mt-4 pt-3.5 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
                         <div>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase">Allocated</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Allocated</p>
                           <p className="text-sm font-black text-gray-800 mt-0.5">{q.allocatedLetters}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase">Reserved</p>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Reserved</p>
                           <p className="text-sm font-black text-sky-700 mt-0.5">{q.reservedLetters}</p>
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-emerald-400 uppercase">Available</p>
+                          <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">Available</p>
                           <p className="text-sm font-black text-emerald-700 mt-0.5">{av}</p>
                         </div>
                       </div>
                     </div>
 
                     {isAdmin && (
-                      <div className="mt-5 pt-3.5 border-t border-gray-50 flex justify-end">
+                      <div className="mt-4 pt-3 border-t border-gray-50 flex justify-end">
                         <button
                           onClick={() => { setAdjustingQuotaId(q.id); setAdjustAllocated(q.allocatedLetters); }}
-                          className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                          className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
                         >
                           Manual Adjustment
                         </button>
@@ -626,83 +714,87 @@ export default function TTDLettersDashboard() {
 
       {/* Create Quota Modal */}
       {showQuotaModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleCreateQuota} className="bg-white rounded-lg p-6 max-w-md w-full shadow-lg border border-gray-100 space-y-4">
-            <h3 className="text-base font-bold text-gray-900">Allocate TTD Quota Period</h3>
+        <div className="fixed inset-0 bg-black/55 z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleCreateQuota} className="bg-white rounded-xl p-5 max-w-md w-full shadow-lg border border-gray-150 space-y-4">
+            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide">Allocate TTD Quota Period</h3>
 
             {overlapError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-xs flex gap-1 items-start">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex gap-1.5 items-start">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{overlapError}</span>
               </div>
             )}
 
-            <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Period Name *</label>
+            <div className="flex flex-col text-xs">
+              <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Period Name *</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. July First Half 2026"
                 value={quotaName}
                 onChange={(e) => setQuotaName(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary text-xs"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">Start Date *</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Start Date *</label>
                 <input
                   type="date"
                   required
                   value={quotaStart}
                   onChange={(e) => setQuotaStart(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary text-xs"
                 />
               </div>
 
               <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">End Date *</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">End Date *</label>
                 <input
                   type="date"
                   required
                   value={quotaEnd}
                   onChange={(e) => setQuotaEnd(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary text-xs"
                 />
               </div>
             </div>
 
-            <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Allocated Letters *</label>
+            <div className="flex flex-col text-xs">
+              <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Allocated Letters *</label>
               <input
                 type="number"
                 required
                 min={1}
                 value={quotaAllocated}
                 onChange={(e) => setQuotaAllocated(parseInt(e.target.value))}
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary text-xs"
               />
             </div>
 
-            <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Internal Notes</label>
+            <div className="flex flex-col text-xs">
+              <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Internal Notes</label>
               <textarea
                 placeholder="Add allotment directives or guidelines..."
                 value={quotaNotes}
                 onChange={(e) => setQuotaNotes(e.target.value)}
-                className="text-xs border border-gray-200 rounded p-2"
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary text-xs"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
               <button
                 type="button"
                 onClick={() => setShowQuotaModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isPending}
-                className="px-4 py-2 bg-primary hover:bg-amber-700 text-white rounded text-xs font-semibold"
+                className="px-3.5 py-1.5 bg-primary hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-sm focus:outline-none"
               >
                 Submit Period
               </button>
@@ -713,51 +805,52 @@ export default function TTDLettersDashboard() {
 
       {/* Manual adjustments popup */}
       {adjustingQuotaId && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <form onSubmit={handleAdjustQuota} className="bg-white rounded-lg p-6 max-w-sm w-full shadow-lg border border-gray-100 space-y-4">
-            <h3 className="text-base font-bold text-gray-900">Manual Quota Adjustment</h3>
+        <div className="fixed inset-0 bg-black/55 z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleAdjustQuota} className="bg-white rounded-xl p-5 max-w-sm w-full shadow-lg border border-gray-150 space-y-4 animate-slide-up">
+            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wide">Manual Quota Adjustment</h3>
 
             {adjustError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-xs flex gap-1 items-start">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex gap-1.5 items-start">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{adjustError}</span>
               </div>
             )}
 
-            <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">New Allocation Capacity *</label>
+            <div className="flex flex-col text-xs">
+              <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">New Allocation Capacity *</label>
               <input
                 type="number"
                 required
                 min={0}
                 value={adjustAllocated}
                 onChange={(e) => setAdjustAllocated(parseInt(e.target.value))}
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary text-xs"
               />
             </div>
 
-            <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Mandatory Correction Reason *</label>
+            <div className="flex flex-col text-xs">
+              <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Mandatory Correction Reason *</label>
               <textarea
                 required
                 placeholder="e.g. Corrected quota mistake after office reallocation."
                 value={adjustReason}
                 onChange={(e) => setAdjustReason(e.target.value)}
-                className="text-xs border border-gray-200 rounded p-2 min-h-[70px]"
+                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary text-xs min-h-[70px]"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
               <button
                 type="button"
                 onClick={() => setAdjustingQuotaId(null)}
-                className="px-4 py-2 border border-gray-300 rounded text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isPending || !adjustReason.trim()}
-                className="px-4 py-2 bg-primary hover:bg-amber-700 text-white rounded text-xs font-semibold disabled:opacity-40"
+                className="px-3.5 py-1.5 bg-primary hover:bg-amber-700 text-white rounded-lg text-xs font-semibold disabled:opacity-40 shadow-sm focus:outline-none"
               >
                 Save Adjustment
               </button>
