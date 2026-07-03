@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { authClient } from "@/lib/auth-client";
@@ -41,7 +41,7 @@ interface TTDRequestListEntry {
   quotaPeriod?: { name: string } | null;
 }
 
-export default function TTDLettersDashboard() {
+function TTDLettersDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
@@ -865,5 +865,20 @@ export default function TTDLettersDashboard() {
         onSave={() => fetchRequests()} 
       />
     </PageLayout>
+  );
+}
+
+export default function TTDLettersDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-emerald-700 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <p className="text-xs text-gray-500 font-medium font-sans">Loading TTD dashboard...</p>
+        </div>
+      </div>
+    }>
+      <TTDLettersDashboardContent />
+    </Suspense>
   );
 }

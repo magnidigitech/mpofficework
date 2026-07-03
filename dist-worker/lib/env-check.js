@@ -83,8 +83,8 @@ function validateProductionEnvironment() {
         validateBuildEnvironment();
     }
     else {
-        // If it is runtime server or local development, let the runtime or database connections handle validation.
-        // We already run scripts/verify-env.js before server starts, so we can run build validation here to be safe.
-        validateBuildEnvironment();
+        // At runtime, NEXT_PUBLIC_* variables are baked into the bundle and not available
+        // in process.env. Only check runtime-injectable server-side variables here.
+        validateRuntimeEnvironment();
     }
 }

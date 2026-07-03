@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { authClient } from "@/lib/auth-client";
@@ -9,7 +9,7 @@ import {
   Download, Printer, ChevronLeft, ChevronRight, Loader2, AlertCircle, Sparkles, Filter
 } from "lucide-react";
 
-export default function ReportsPage() {
+function ReportsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
@@ -740,5 +740,20 @@ export default function ReportsPage() {
         }
       `}</style>
     </PageLayout>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-emerald-700 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <p className="text-xs text-gray-500 font-medium font-sans">Loading reports...</p>
+        </div>
+      </div>
+    }>
+      <ReportsPageContent />
+    </Suspense>
   );
 }

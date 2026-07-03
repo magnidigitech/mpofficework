@@ -14,14 +14,17 @@ redisConnection.on("error", (err) => {
     // Suppress connection logs/warnings in build & offline dev environments
 });
 // Configure VAPID keys
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+// NOTE: Use VAPID_PUBLIC_KEY (not NEXT_PUBLIC_VAPID_PUBLIC_KEY) — NEXT_PUBLIC_ vars
+// are baked into the browser bundle at build time and are NOT available in the worker process.
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 const vapidSubject = process.env.VAPID_SUBJECT || "mailto:admin@mpoffice.com";
 if (vapidPublicKey && vapidPrivateKey) {
     web_push_1.default.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+    console.log("[Worker] VAPID keys configured successfully.");
 }
 else {
-    console.warn("VAPID keys not configured. Push notifications will not send successfully.");
+    console.error("[Worker] VAPID keys NOT configured — missing VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY. Push notifications will fail.");
 }
 const worker = new bullmq_1.Worker("notifications", async (job) => {
     const { notificationId } = job.data;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { db, type OfflineSchedule, type OfflineContact } from "@/lib/db";
@@ -37,7 +37,7 @@ interface ScheduleWithRelations extends OfflineSchedule {
   socialMediaUpdate?: { isRequired: boolean; status: string; posts?: any[] } | null;
 }
 
-export default function SchedulePage() {
+function SchedulePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = authClient.useSession();
@@ -1003,5 +1003,20 @@ export default function SchedulePage() {
         editId={editScheduleId} 
       />
     </PageLayout>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-emerald-700 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          <p className="text-xs text-gray-500 font-medium font-sans">Loading schedules...</p>
+        </div>
+      </div>
+    }>
+      <SchedulePageContent />
+    </Suspense>
   );
 }
