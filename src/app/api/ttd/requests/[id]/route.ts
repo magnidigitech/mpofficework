@@ -41,7 +41,7 @@ const updateRequestSchema = zod.object({
       mobile: zod.string().nullable().optional(),
       relationshipToApplicant: zod.string().nullable().optional(),
       identityType: zod.string(),
-      identityLastFourDigits: zod.string().length(4),
+      identityLastFourDigits: zod.string().min(4),
       isPrimaryApplicant: zod.boolean().default(false),
     })
   ).optional(),

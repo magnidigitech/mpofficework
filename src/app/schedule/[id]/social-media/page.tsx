@@ -1011,7 +1011,7 @@ export default function SocialMediaTrackingPage() {
                               <>
                                 <button
                                   onClick={() => handleCopyLink(post.postUrl)}
-                                  className="flex items-center gap-1 px-2.5 py-1.5 border border-gray-250 hover:bg-gray-50 text-gray-700 rounded text-[10px] font-bold transition"
+                                  className="flex items-center gap-1 px-2.5 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded text-[10px] font-bold transition"
                                 >
                                   <Copy className="w-3 h-3" /> Copy Link
                                 </button>
@@ -1028,7 +1028,7 @@ export default function SocialMediaTrackingPage() {
 
                             <button
                               onClick={() => initEditPost(post)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 border border-gray-250 hover:bg-gray-50 text-gray-700 rounded text-[10px] font-bold transition"
+                              className="flex items-center gap-1 px-2.5 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded text-[10px] font-bold transition"
                             >
                               <Edit3 className="w-3 h-3" /> Edit
                             </button>

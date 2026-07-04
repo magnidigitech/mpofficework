@@ -539,7 +539,7 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 border border-gray-250 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-600 transition"
+            className="px-4 py-2 border border-gray-200 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-600 transition"
             disabled={isPending}
           >
             Cancel

@@ -38,7 +38,7 @@ const createRequestSchema = zod.object({
       mobile: zod.string().optional().nullable(),
       relationshipToApplicant: zod.string().optional().nullable(),
       identityType: zod.string().min(2, "Identity type is required"),
-      identityLastFourDigits: zod.string().length(4, "Identity number must be last 4 digits only"),
+      identityLastFourDigits: zod.string().min(4, "Identity number must be at least 4 digits/characters"),
       isPrimaryApplicant: zod.boolean().default(false),
     })
   ).min(1, "At least one travelling member is required"),
@@ -71,6 +71,7 @@ export async function GET(request: Request) {
     const letterNumber = searchParams.get("letterNumber");
     const relatedScheduleId = searchParams.get("relatedScheduleId");
     const query = searchParams.get("query"); // General search query
+    const sortBy = searchParams.get("sortBy") || "darshanDate"; // 'darshanDate' or 'idNewest'
 
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
@@ -108,6 +109,13 @@ export async function GET(request: Request) {
     }
 
     const total = await prisma.tTDRequest.count({ where });
+
+    // Determine ordering
+    let orderBy: any = { preferredDarshanDate: "asc" };
+    if (sortBy === "idNewest") {
+      orderBy = { createdAt: "desc" };
+    }
+
     const requests = await prisma.tTDRequest.findMany({
       where,
       select: {
@@ -127,7 +135,7 @@ export async function GET(request: Request) {
           select: { name: true },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy,
       skip,
       take: limit,
     });

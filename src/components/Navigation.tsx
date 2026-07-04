@@ -50,6 +50,7 @@ export function Navigation() {
   const navItems = [...baseNavItems];
   if (isAdmin) {
     navItems.push({ name: "Staff Management", href: "/admin/staff", icon: Users });
+    navItems.push({ name: "Checklist Templates", href: "/admin/templates", icon: FileText });
     navItems.push({ name: "Audit Center", href: "/admin/audit", icon: Shield });
     navItems.push({ name: "Settings", href: "/admin/settings", icon: Settings });
   }
@@ -63,7 +64,7 @@ export function Navigation() {
     }
   };
 
-  const isMenuLinkActive = ["/profile", "/admin/staff", "/admin/audit", "/admin/settings"].includes(pathname);
+  const isMenuLinkActive = ["/profile", "/admin/staff", "/admin/templates", "/admin/audit", "/admin/settings"].includes(pathname);
 
   return (
     <>
@@ -160,6 +161,16 @@ export function Navigation() {
                     <span>Staff Management</span>
                   </Link>
                   <Link
+                    href="/admin/templates"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center gap-3.5 px-4 py-3 text-sm font-semibold rounded-lg transition ${
+                      pathname === "/admin/templates" ? "bg-amber-50 text-primary font-bold" : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <FileText className="w-5 h-5 text-gray-400" />
+                    <span>Checklist Templates</span>
+                  </Link>
+                  <Link
                     href="/admin/audit"
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex items-center gap-3.5 px-4 py-3 text-sm font-semibold rounded-lg transition ${
@@ -202,7 +213,7 @@ export function Navigation() {
             <div className="flex justify-end gap-2.5 mt-6">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 border border-gray-250 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-600 transition focus:outline-none cursor-pointer"
+                className="px-4 py-2 border border-gray-200 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-600 transition focus:outline-none cursor-pointer"
               >
                 Cancel
               </button>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { getUserRoles } from "@/lib/ttd-utils";
+import { sendNotification } from "@/lib/notification-sender";
 
 export async function POST(
   request: Request,
@@ -64,6 +65,20 @@ export async function POST(
 
       return record;
     });
+
+    if (updated.createdById) {
+      await sendNotification(
+        updated.createdById,
+        "TTD Request Verification Failed",
+        `Verification failed for request ${updated.requestNumber} (${updated.applicantName}). Reason: ${reason}`,
+        {
+          type: "ttd",
+          targetUrl: "/ttd-letters",
+          relatedEntityType: "TTDRequest",
+          relatedEntityId: updated.id,
+        }
+      );
+    }
 
     return NextResponse.json({ success: true, request: updated });
   } catch (err: any) {

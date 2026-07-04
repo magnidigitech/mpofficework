@@ -6,7 +6,7 @@ import { PageLayout } from "@/components/PageLayout";
 import { authClient } from "@/lib/auth-client";
 import { 
   FileText, Calendar, CheckSquare, Share2, Award, Users, Search, 
-  Download, Printer, ChevronLeft, ChevronRight, Loader2, AlertCircle, Sparkles, Filter
+  Download, Printer, ChevronLeft, ChevronRight, Loader2, AlertCircle, Sparkles, Filter, Shield
 } from "lucide-react";
 
 function ReportsPageContent() {
@@ -49,12 +49,26 @@ function ReportsPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [reportData, setReportData] = useState<any>(null);
   const [page, setPage] = useState(1);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Available staff list (for filters)
   const [staffList, setStaffList] = useState<any[]>([]);
 
   useEffect(() => {
     fetchStaff();
+    async function checkAdmin() {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const profile = await res.json();
+          const roles = profile.roles || [];
+          if (roles.includes("Super Admin") || roles.includes("MP Office Admin")) {
+            setIsAdmin(true);
+          }
+        }
+      } catch (e) {}
+    }
+    checkAdmin();
   }, []);
 
   useEffect(() => {
@@ -311,16 +325,25 @@ function ReportsPageContent() {
         </div>
 
         <div className="flex gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => router.push("/admin/audit")}
+              className="flex items-center gap-1.5 h-10 px-4 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-lg shadow-sm text-xs transition active:scale-95 focus:outline-none cursor-pointer"
+            >
+              <Shield className="w-4 h-4 text-amber-500" />
+              <span>Security Audit Center</span>
+            </button>
+          )}
           <button
             onClick={handleExportExcel}
-            className="flex items-center gap-1.5 h-10 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-lg shadow-sm text-xs transition active:scale-95 focus:outline-none"
+            className="flex items-center gap-1.5 h-10 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-lg shadow-sm text-xs transition active:scale-95 focus:outline-none cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>Export Excel</span>
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 h-10 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg text-xs transition active:scale-95 focus:outline-none"
+            className="flex items-center gap-1.5 h-10 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg text-xs transition active:scale-95 focus:outline-none cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Print PDF</span>

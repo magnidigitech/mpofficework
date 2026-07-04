@@ -113,7 +113,7 @@ export async function GET(request: Request) {
       },
       include: {
         schedule: {
-          select: { id: true, title: true, startAt: true, status: true },
+          select: { id: true, title: true, startAt: true, endAt: true, status: true },
         },
       },
       take: 5,

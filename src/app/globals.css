@@ -137,3 +137,30 @@ select.status-select-badge:focus {
   border: 0;
   white-space: nowrap;
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Hide navigation sidebar, sticky top header, mobile navigation, actions side panel */
+  nav, header, footer, .print-hidden, .print\:hidden {
+    display: none !important;
+  }
+  
+  /* Strip layout side padding and shifts */
+  .md\:pl-64 {
+    padding-left: 0 !important;
+  }
+  
+  /* Expand main container to full screen and remove border/bg shadow */
+  main, .max-w-5xl, .p-4, .md\:p-8 {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

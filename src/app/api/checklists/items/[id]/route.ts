@@ -240,6 +240,26 @@ export async function PATCH(
       );
     }
 
+    if (data.isCompleted === true && !item.isCompleted) {
+      const notifyUserIds = Array.from(new Set([
+        ...item.visitChecklist.schedule.assignments.map(a => a.userId),
+      ])).filter(uid => uid !== session.user.id);
+
+      if (notifyUserIds.length > 0) {
+        await sendNotification(
+          notifyUserIds,
+          "Checklist Task Completed",
+          `"${resultItem.title}" has been completed by ${session.user.name} for schedule "${item.visitChecklist.schedule.title}".`,
+          {
+            type: "checklist",
+            targetUrl: `/schedule/${item.visitChecklist.schedule.id}/checklist`,
+            relatedEntityType: "ChecklistItem",
+            relatedEntityId: resultItem.id,
+          }
+        );
+      }
+    }
+
     return NextResponse.json({ success: true, item: resultItem });
   } catch (err: any) {
     console.error("Error patching checklist item:", err);

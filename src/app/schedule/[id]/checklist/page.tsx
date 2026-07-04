@@ -761,7 +761,7 @@ export default function ScheduleChecklistPage() {
                                       value={remarksInput}
                                       onChange={(e) => setRemarksInput(e.target.value)}
                                       placeholder="Add remark..."
-                                      className="text-[10px] h-6 px-2 py-0.5 border border-gray-250 rounded focus:outline-none focus:border-emerald-700 bg-white w-32 sm:w-48"
+                                      className="text-[10px] h-6 px-2 py-0.5 border border-gray-200 rounded focus:outline-none focus:border-emerald-700 bg-white w-32 sm:w-48"
                                     />
                                     <button
                                       onClick={() => handleSaveRemarks(item.id)}

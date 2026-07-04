@@ -246,7 +246,8 @@ export default function TTDRequestDetailsPage() {
 
   return (
     <PageLayout>
-      {/* Header section with back btn */}
+      <div className="print:hidden">
+        {/* Header section with back btn */}
       <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => { window.location.href = "/ttd-letters"; }}
@@ -388,7 +389,7 @@ export default function TTDRequestDetailsPage() {
 
                   <div className="text-right flex flex-col items-end">
                     <span className="font-mono text-gray-600 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded text-[10px]">
-                      {member.identityType}: ****{member.identityLastFourDigits}
+                      {member.identityType}: {member.identityLastFourDigits}
                     </span>
                   </div>
                 </div>
@@ -623,6 +624,17 @@ export default function TTDRequestDetailsPage() {
                 </button>
               )}
 
+              {/* Print Letter Button */}
+              {["QUOTA_RESERVED", "LETTER_PREPARED", "DISTRIBUTED", "USED"].includes(data.status) && (
+                <button
+                  onClick={() => window.print()}
+                  className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded transition uppercase tracking-wider mt-2.5 flex items-center justify-center gap-1.5"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Print Official Letter</span>
+                </button>
+              )}
+
               {/* Cancellation */}
               {!["CANCELLED", "REJECTED", "USED"].includes(data.status) && (
                 <button
@@ -777,6 +789,92 @@ export default function TTDRequestDetailsPage() {
           </div>
         </div>
       )}
+      </div>
+
+      {/* Print-only template */}
+      <div className="hidden print:block font-serif text-black leading-relaxed p-8 max-w-2xl mx-auto bg-white">
+        {/* Letterhead */}
+        <div className="text-center border-b-2 border-gray-800 pb-4 mb-6">
+          <h1 className="text-xl font-bold uppercase tracking-wide">Office of B. Ramakrishna, M.P.</h1>
+          <p className="text-xs uppercase font-semibold text-gray-600">Member of Parliament (Lok Sabha)</p>
+          <p className="text-[10px] text-gray-500 mt-1">12, Parliament House, New Delhi / MP Office, Amaravati, Andhra Pradesh</p>
+        </div>
+
+        {/* Ref and Date */}
+        <div className="flex justify-between text-xs mb-8">
+          <div>
+            <strong>Ref No:</strong> {data.letterNumber || `TTD-REQ-${data.requestNumber}`}
+          </div>
+          <div>
+            <strong>Date:</strong> {data.letterDate ? new Date(data.letterDate).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN")}
+          </div>
+        </div>
+
+        {/* Recipient */}
+        <div className="text-xs space-y-0.5 mb-8">
+          <p>To,</p>
+          <p className="font-bold">The Executive Officer,</p>
+          <p>Tirumala Tirupati Devasthanams,</p>
+          <p>Tirupati, Andhra Pradesh.</p>
+        </div>
+
+        {/* Subject */}
+        <div className="text-xs mb-6 font-bold flex gap-1">
+          <span>Sub:</span>
+          <span>Request for VIP Darshan / Accommodation recommendation - Reg.</span>
+        </div>
+
+        {/* Salutation */}
+        <p className="text-xs mb-4">Respected Sir,</p>
+
+        {/* Body */}
+        <p className="text-xs mb-4 text-justify">
+          I am pleased to recommend the following pilgrims, who are residents of my constituency, for facilitating VIP Darshan / Accommodation at Tirumala on their visit scheduled on <strong>{new Date(data.preferredDarshanDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</strong>.
+        </p>
+
+        {/* Table of Pilgrims */}
+        <table className="w-full text-left text-xs border-collapse border border-gray-400 mb-6">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="border border-gray-400 p-2 text-center w-10">S.No</th>
+              <th className="border border-gray-400 p-2">Pilgrim Full Name</th>
+              <th className="border border-gray-400 p-2 text-center w-14">Age</th>
+              <th className="border border-gray-400 p-2 text-center w-16">Gender</th>
+              <th className="border border-gray-400 p-2">ID Document (Last 4)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.members.map((member, idx) => (
+              <tr key={member.id}>
+                <td className="border border-gray-400 p-2 text-center">{idx + 1}</td>
+                <td className="border border-gray-400 p-2 font-semibold">{member.fullName}</td>
+                <td className="border border-gray-400 p-2 text-center">{member.age}</td>
+                <td className="border border-gray-400 p-2 text-center uppercase">{member.gender.toLowerCase()}</td>
+                <td className="border border-gray-400 p-2 font-mono">{member.identityType} ({member.identityLastFourDigits})</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Closing */}
+        <p className="text-xs mb-12 text-justify">
+          I request you to kindly facilitate the tickets and accommodation as per the rules. Thank you in advance.
+        </p>
+
+        {/* Sign-off */}
+        <div className="flex justify-between items-end text-xs">
+          <div>
+            <p>Yours faithfully,</p>
+            <div className="h-16"></div>
+            <p className="font-bold">(B. RAMAKRISHNA)</p>
+            <p className="text-gray-500">Member of Parliament</p>
+          </div>
+          <div className="text-[10px] text-gray-400 text-right">
+            <p>Prepared by: {session?.user?.name || "Staff"}</p>
+            <p>Verification ID: {data.requestNumber}</p>
+          </div>
+        </div>
+      </div>
     </PageLayout>
   );
 }

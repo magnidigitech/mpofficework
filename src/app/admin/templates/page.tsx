@@ -5,7 +5,7 @@ import { PageLayout } from "@/components/PageLayout";
 import { authClient } from "@/lib/auth-client";
 import { 
   Plus, Trash, ArrowUp, ArrowDown, Settings, FileText, CheckCircle2, 
-  AlertCircle, Save, Edit3, X, Eye, ShieldAlert 
+  AlertCircle, Save, Edit3, X, Eye, ShieldAlert, GripVertical
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -52,6 +52,30 @@ export default function ChecklistTemplateManagement() {
   const [itemTitle, setItemTitle] = useState("");
   const [itemSection, setItemSection] = useState<"BEFORE_VISIT" | "DURING_VISIT" | "AFTER_VISIT">("BEFORE_VISIT");
   const [itemIsMandatory, setItemIsMandatory] = useState(false);
+
+  // Drag and drop states
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [deleteConfirmIdx, setDeleteConfirmIdx] = useState<number | null>(null);
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    // Swap items in state array
+    const updatedItems = [...templateItems];
+    const draggedItem = updatedItems[draggedIndex];
+    updatedItems.splice(draggedIndex, 1);
+    updatedItems.splice(index, 0, draggedItem);
+
+    // Update displayOrder
+    const reordered = updatedItems.map((item, i) => ({
+      ...item,
+      displayOrder: i + 1,
+    }));
+
+    setDraggedIndex(index);
+    setTemplateItems(reordered);
+  };
 
   // Fetch templates list
   const loadTemplates = async () => {
@@ -358,109 +382,110 @@ export default function ChecklistTemplateManagement() {
 
           {/* Template Items management */}
           <div className="pt-4 border-t border-gray-100">
-            <h3 className="text-sm font-bold text-gray-800 mb-3">Boilerplate Tasks List</h3>
+            <h3 className="text-sm font-bold text-gray-800 mb-3">Tasks List</h3>
 
             {/* Quick Add Task Form */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 flex flex-col sm:flex-row gap-3 items-end">
-              <div className="flex-1 flex flex-col w-full">
-                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1">Task Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Verify catering details"
-                  value={itemTitle}
-                  onChange={(e) => setItemTitle(e.target.value)}
-                  className="text-xs h-10 w-full"
-                />
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4.5 mb-5 flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col w-full">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Task Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Verify catering details"
+                    value={itemTitle}
+                    onChange={(e) => setItemTitle(e.target.value)}
+                    className="text-xs h-9.5 px-3 w-full border border-gray-200 rounded-lg focus:outline-none focus:border-primary font-sans font-medium text-gray-900"
+                  />
+                </div>
+
+                <div className="flex flex-col w-full">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Section</label>
+                  <select
+                    value={itemSection}
+                    onChange={(e) => setItemSection(e.target.value as any)}
+                    className="text-xs h-9.5 border border-gray-200 rounded-lg px-2.5 bg-white focus:outline-none focus:border-primary font-sans font-medium text-gray-900 cursor-pointer"
+                  >
+                    <option value="BEFORE_VISIT">Before Visit</option>
+                    <option value="DURING_VISIT">During Visit</option>
+                    <option value="AFTER_VISIT">After Visit</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex flex-col shrink-0 w-full sm:w-auto">
-                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1">Section</label>
-                <select
-                  value={itemSection}
-                  onChange={(e) => setItemSection(e.target.value as any)}
-                  className="text-xs h-10 border border-gray-200 rounded px-2.5 bg-white"
-                >
-                  <option value="BEFORE_VISIT">Before Visit</option>
-                  <option value="DURING_VISIT">During Visit</option>
-                  <option value="AFTER_VISIT">After Visit</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2 h-10 shrink-0 pb-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  id="itemMandatoryChk"
-                  checked={itemIsMandatory}
-                  onChange={(e) => setItemIsMandatory(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary accent-primary"
-                />
-                <label htmlFor="itemMandatoryChk" className="text-xs font-bold text-gray-700 cursor-pointer">
-                  Mandatory Task
+              {/* Mandatory checkbox and Add button grouped together */}
+              <div className="flex items-center justify-between border-t border-gray-200/60 pt-3 flex-wrap gap-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={itemIsMandatory}
+                    onChange={(e) => setItemIsMandatory(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
+                  />
+                  <span>Mark as Mandatory Task</span>
                 </label>
-              </div>
 
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="h-10 px-4 bg-primary hover:bg-amber-700 text-white rounded text-xs font-bold w-full sm:w-auto transition flex items-center justify-center gap-1"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Task
-              </button>
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="h-9 px-5 bg-primary hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer focus:outline-none"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Task</span>
+                </button>
+              </div>
             </div>
 
             {/* List of items */}
             {templateItems.length === 0 ? (
               <div className="text-center py-8 text-xs text-gray-400 font-sans border border-dashed border-gray-200 rounded-lg">
-                No boilerplate tasks added to this template yet.
+                No tasks added to this template yet.
               </div>
             ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
                 {templateItems.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-[10px] font-bold text-gray-400 bg-white border border-gray-100 w-5 h-5 flex items-center justify-center rounded-full shrink-0">
-                        {idx + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-gray-800 truncate">{item.title}</p>
-                        <p className="text-[9px] text-gray-400 font-medium uppercase mt-0.5">
-                          Section: <strong>{item.section.replace("_", " ")}</strong>
-                        </p>
-                      </div>
-                      {item.isMandatory && (
-                        <span className="bg-red-50 text-red-700 border border-red-100 text-[8px] font-extrabold px-1 rounded uppercase shrink-0">
-                          Mandatory
-                        </span>
-                      )}
+                  <div 
+                    key={idx}
+                    draggable
+                    onDragStart={() => setDraggedIndex(idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDragEnd={() => setDraggedIndex(null)}
+                    className={`bg-white border rounded-xl p-3 shadow-xs hover:shadow-sm transition flex items-start gap-3 select-none relative ${
+                      draggedIndex === idx ? "opacity-30 border-dashed border-primary bg-amber-50/20" : "border-gray-200"
+                    }`}
+                  >
+                    {/* Left: Drag Handle Icon */}
+                    <div className="text-gray-400 mt-0.5 shrink-0 cursor-grab active:cursor-grabbing hover:text-gray-600 p-1">
+                      <GripVertical className="w-3.5 h-3.5" />
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleMoveUp(idx)}
-                        disabled={idx === 0}
-                        className="p-1 text-gray-400 hover:text-gray-800 disabled:opacity-30"
-                        aria-label="Move item up"
-                      >
-                        <ArrowUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleMoveDown(idx)}
-                        disabled={idx === templateItems.length - 1}
-                        className="p-1 text-gray-400 hover:text-gray-800 disabled:opacity-30"
-                        aria-label="Move item down"
-                      >
-                        <ArrowDown className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(idx)}
-                        className="p-1 text-red-500 hover:text-red-700 ml-1.5"
-                        aria-label="Delete item"
-                      >
-                        <Trash className="w-3.5 h-3.5" />
-                      </button>
+                    {/* Right: 2-Section Details */}
+                    <div className="flex-1 min-w-0">
+                      {/* Top Row: Checklist point Title */}
+                      <p className="text-xs font-bold text-gray-900 break-words whitespace-normal leading-normal">{item.title}</p>
+                      
+                      {/* Bottom Row: Metadata tags & actions */}
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide border-t border-gray-100/70 pt-2 mt-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md text-[9px]">
+                            {item.section.replace("_", " ")}
+                          </span>
+                          {item.isMandatory && (
+                            <span className="bg-red-50 text-red-700 border border-red-100 text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase shrink-0">
+                              Mandatory
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Delete action button */}
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirmIdx(idx)}
+                          className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded-lg transition focus:outline-none cursor-pointer shrink-0"
+                          title="Delete Task"
+                        >
+                          <Trash className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -547,6 +572,41 @@ export default function ChecklistTemplateManagement() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete Item Confirmation Modal */}
+      {deleteConfirmIdx !== null && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0" onClick={() => setDeleteConfirmIdx(null)} />
+          <div className="relative bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-gray-100 z-50 space-y-4 animate-slide-up">
+            <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wide flex items-center gap-1.5 text-red-700">
+              <Trash className="w-4 h-4" />
+              <span>Delete Checklist Item</span>
+            </h4>
+            <p className="text-xs text-gray-600 leading-normal">
+              Are you sure you want to remove the task <strong className="text-gray-900">"{templateItems[deleteConfirmIdx]?.title}"</strong>? This deletion won't be final until you click <strong>Save Template</strong>.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmIdx(null)}
+                className="px-3.5 py-1.5 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-semibold focus:outline-none cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRemoveItem(deleteConfirmIdx);
+                  setDeleteConfirmIdx(null);
+                }}
+                className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shadow-xs focus:outline-none cursor-pointer"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </PageLayout>

@@ -287,6 +287,169 @@ export default function Dashboard() {
               <FileText className="w-8 h-8 text-emerald-600/20" />
             </Link>
           </div>
+
+          {/* Analytics Summary and pure SVG Charts */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* Chart Card 1: TTD Letters Quota Utilization */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-primary" />
+                  <span>TTD Quota Utilization</span>
+                </h3>
+                
+                {(() => {
+                  const used = metrics?.ttdQuotaUsed || 0;
+                  const available = metrics?.ttdQuotaAvailable || 0;
+                  const total = used + available;
+                  const percent = total > 0 ? Math.round((used / total) * 100) : 0;
+                  const radius = 38;
+                  const circumference = 2 * Math.PI * radius;
+                  const strokeOffset = circumference - (percent / 100) * circumference;
+
+                  return (
+                    <div className="flex items-center gap-6">
+                      <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
+                        <svg className="w-full h-full transform -rotate-90">
+                          {/* Background circle track */}
+                          <circle
+                            cx="56"
+                            cy="56"
+                            r={radius}
+                            className="stroke-gray-100 fill-transparent"
+                            strokeWidth="8"
+                          />
+                          {/* Foreground progress indicator */}
+                          <circle
+                            cx="56"
+                            cy="56"
+                            r={radius}
+                            className="stroke-primary fill-transparent transition-all duration-500 ease-out"
+                            strokeWidth="8"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={strokeOffset}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <div className="absolute flex flex-col items-center justify-center text-center">
+                          <span className="text-sm font-black text-gray-900">{percent}%</span>
+                          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Used</span>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 space-y-2">
+                        <div className="text-xs font-semibold text-gray-700">
+                          Quota Period Status:
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-wide">
+                          <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-2 text-center">
+                            <span className="text-gray-400 block text-[8px] mb-0.5">Used Letters</span>
+                            <span className="text-primary text-sm font-black">{used}</span>
+                          </div>
+                          <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-2 text-center">
+                            <span className="text-gray-400 block text-[8px] mb-0.5">Available Slots</span>
+                            <span className="text-emerald-700 text-sm font-black">{available}</span>
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-gray-500 leading-normal font-sans">
+                          {total > 0 
+                            ? `${used} out of total ${total} official recommendation letters issued or reserved for this quota season.`
+                            : "No active quota periods allocated at the moment."
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Chart Card 2: Today's Schedule status coverage */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  <span>Today's Visit Status</span>
+                </h3>
+
+                {(() => {
+                  const total = metrics?.todayTotal || 0;
+                  const completed = metrics?.todayCompleted || 0;
+                  const upcoming = metrics?.todayUpcoming || 0;
+                  const cancelled = metrics?.todayCancelled || 0;
+
+                  const compPercent = total > 0 ? (completed / total) * 100 : 0;
+                  const upPercent = total > 0 ? (upcoming / total) * 100 : 0;
+                  const cancPercent = total > 0 ? (cancelled / total) * 100 : 0;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Horizontal Stacked Bar */}
+                      <div className="h-6 w-full rounded-xl bg-gray-100 overflow-hidden flex shadow-inner">
+                        {total > 0 ? (
+                          <>
+                            {completed > 0 && (
+                              <div 
+                                style={{ width: `${compPercent}%` }} 
+                                className="bg-emerald-600 h-full transition-all duration-300 relative group flex items-center justify-center"
+                                title={`Completed: ${completed}`}
+                              >
+                                <span className="text-[9px] font-black text-white">{completed}</span>
+                              </div>
+                            )}
+                            {upcoming > 0 && (
+                              <div 
+                                style={{ width: `${upPercent}%` }} 
+                                className="bg-amber-500 h-full transition-all duration-300 relative group flex items-center justify-center"
+                                title={`Upcoming: ${upcoming}`}
+                              >
+                                <span className="text-[9px] font-black text-white">{upcoming}</span>
+                              </div>
+                            )}
+                            {cancelled > 0 && (
+                              <div 
+                                style={{ width: `${cancPercent}%` }} 
+                                className="bg-red-500 h-full transition-all duration-300 relative group flex items-center justify-center"
+                                title={`Cancelled: ${cancelled}`}
+                              >
+                                <span className="text-[9px] font-black text-white">{cancelled}</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400 font-bold">
+                            No visits scheduled for today.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Status Legends */}
+                      <div className="grid grid-cols-3 gap-2.5 pt-1 text-[10px] font-bold font-sans">
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block shrink-0"></span>
+                          <span className="truncate">COMPLETED ({completed})</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shrink-0"></span>
+                          <span className="truncate">UPCOMING ({upcoming})</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                          <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shrink-0"></span>
+                          <span className="truncate">CANCELLED ({cancelled})</span>
+                        </div>
+                      </div>
+                      
+                      <div className="text-[10px] text-gray-500 leading-normal font-sans pt-1 border-t border-gray-100">
+                        Total visits on today's agenda: <span className="font-bold text-gray-900">{total}</span>. 
+                        {completed === total && total > 0 && " 🎉 All scheduled tours completed successfully!"}
+                        {completed < total && total > 0 && ` ${upcoming} tours are remaining.`}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
         </>
       )}
 
@@ -458,35 +621,69 @@ export default function Dashboard() {
             Urgent Social Media Actions
           </h2>
           <div className="divide-y divide-gray-100">
-            {dashboardData.urgentSocialItems.map((item: any) => (
-              <div key={item.id} className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div>
-                  <h4 className="font-bold text-gray-950 text-sm">{item.schedule.title}</h4>
-                  <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
-                    <span className="text-[9px] text-gray-400 font-semibold uppercase">
-                      Event: {item.schedule.status}
-                    </span>
-                    <span className={`text-[9px] px-2 py-0.5 border rounded uppercase font-black ${
-                      item.approvalStatus === "PENDING"
-                        ? "bg-amber-50 text-amber-800 border-amber-200"
-                        : item.status === "APPROVED"
-                        ? "bg-purple-50 text-purple-800 border-purple-200"
-                        : "bg-red-50 text-red-800 border-red-200"
-                    }`}>
-                      {item.approvalStatus === "PENDING" ? "Approval Pending" : item.status.replace("_", " ")}
-                    </span>
-                  </div>
-                </div>
+            {dashboardData.urgentSocialItems.map((item: any) => {
+              // Calculate elapsed time since event completion
+              const endAt = item.schedule.endAt;
+              const endTime = endAt ? new Date(endAt).getTime() : 0;
+              const nowTime = new Date().getTime();
+              const diffMs = nowTime - endTime;
+              const isCompleted = item.schedule.status === "COMPLETED";
+              const showCountdown = isCompleted && diffMs > 0;
+              
+              let elapsedStr = "";
+              let urgencyBadgeStyle = "bg-blue-50 text-blue-800 border-blue-200";
+              
+              if (showCountdown) {
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMins / 60);
+                const remainingMins = diffMins % 60;
+                elapsedStr = diffHours === 0 ? `${diffMins}m elapsed` : `${diffHours}h ${remainingMins}m elapsed`;
+                
+                if (diffHours < 3) {
+                  urgencyBadgeStyle = "bg-blue-50 text-blue-800 border-blue-200";
+                } else if (diffHours < 6) {
+                  urgencyBadgeStyle = "bg-amber-50 text-amber-800 border border-amber-200 animate-pulse";
+                } else {
+                  urgencyBadgeStyle = "bg-red-50 text-red-800 border border-red-200 font-extrabold animate-bounce";
+                }
+              }
 
-                <Link
-                  href={`/schedule/${item.schedule.id}/social-media`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-primary font-bold rounded text-xs transition"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Manage Coverage</span>
-                </Link>
-              </div>
-            ))}
+              return (
+                <div key={item.id} className="py-3.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <h4 className="font-bold text-gray-950 text-sm">{item.schedule.title}</h4>
+                    <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
+                      <span className="text-[9px] text-gray-400 font-semibold uppercase">
+                        Event: {item.schedule.status}
+                      </span>
+                      <span className={`text-[9px] px-2 py-0.5 border rounded uppercase font-black ${
+                        item.approvalStatus === "PENDING"
+                          ? "bg-amber-50 text-amber-800 border-amber-200"
+                          : item.status === "APPROVED"
+                          ? "bg-purple-50 text-purple-800 border-purple-200"
+                          : "bg-red-50 text-red-800 border-red-200"
+                      }`}>
+                        {item.approvalStatus === "PENDING" ? "Approval Pending" : item.status.replace("_", " ")}
+                      </span>
+                      {showCountdown && (
+                        <span className={`text-[9px] px-2 py-0.5 border rounded-full font-bold flex items-center gap-1 ${urgencyBadgeStyle}`}>
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{elapsedStr}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <Link
+                    href={`/schedule/${item.schedule.id}/social-media`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-primary font-bold rounded text-xs transition"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Manage Coverage</span>
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

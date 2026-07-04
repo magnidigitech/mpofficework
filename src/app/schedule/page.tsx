@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { db, type OfflineSchedule, type OfflineContact } from "@/lib/db";
@@ -92,6 +92,62 @@ function SchedulePageContent() {
   });
   const [shareMessage, setShareMessage] = useState("");
 
+  interface ShareOptions {
+    includeDescription: boolean;
+    includeGoogleMaps: boolean;
+    includeContacts: boolean;
+    includeAssignments: boolean;
+    includeStatus: boolean;
+    noEmojis: boolean;
+    onlyConfirmed: boolean;
+  }
+
+  // Calendar states
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar");
+  const [calendarView, setCalendarView] = useState<"month" | "week" | "day">("month");
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  });
+
+  const [shareOptions, setShareOptions] = useState<ShareOptions>({
+    includeDescription: true,
+    includeGoogleMaps: true,
+    includeContacts: true,
+    includeAssignments: true,
+    includeStatus: true,
+    noEmojis: true,
+    onlyConfirmed: true,
+  });
+
+  // Load preferences from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("schedule_share_options");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setShareOptions({
+          includeDescription: parsed.includeDescription ?? true,
+          includeGoogleMaps: parsed.includeGoogleMaps ?? true,
+          includeContacts: parsed.includeContacts ?? true,
+          includeAssignments: parsed.includeAssignments ?? true,
+          includeStatus: parsed.includeStatus ?? true,
+          noEmojis: parsed.noEmojis ?? true,
+          onlyConfirmed: parsed.onlyConfirmed ?? true,
+        });
+      } catch (e) {
+        console.error("Failed to parse schedule share options", e);
+      }
+    }
+  }, []);
+
+  // Handler to update share preferences and save to localStorage
+  const updateShareOption = (key: keyof ShareOptions, val: boolean) => {
+    const updated = { ...shareOptions, [key]: val };
+    setShareOptions(updated);
+    localStorage.setItem("schedule_share_options", JSON.stringify(updated));
+  };
+
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
@@ -147,12 +203,16 @@ function SchedulePageContent() {
   }, [showWhatsAppPrompt, whatsappTemplate]);
 
   // Compile daily tour schedules
-  const compileDailySchedule = (dateStr: string) => {
-    const filtered = schedules.filter((s) => {
+  const compileDailySchedule = (dateStr: string, opts: ShareOptions = shareOptions) => {
+    let filtered = schedules.filter((s) => {
       const sDate = new Date(s.startAt);
       const localDateStr = sDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
       return localDateStr === dateStr;
     });
+
+    if (opts.onlyConfirmed) {
+      filtered = filtered.filter((s) => s.status !== "DRAFT");
+    }
 
     if (filtered.length === 0) {
       return `No visits scheduled for ${dateStr}.`;
@@ -181,23 +241,39 @@ function SchedulePageContent() {
       });
 
       msg += `${idx + 1}. *${s.title}*\n`;
-      msg += `🕒 Time: ${startTime} - ${endTime}\n`;
-      msg += `📍 Venue: ${s.venue}\n`;
-      if (s.description) {
-        msg += `📝 Description: ${s.description}\n`;
+      msg += opts.noEmojis ? `Time: ${startTime} - ${endTime}\n` : `🕒 Time: ${startTime} - ${endTime}\n`;
+      msg += opts.noEmojis ? `Venue: ${s.venue}\n` : `📍 Venue: ${s.venue}\n`;
+      
+      if (opts.includeGoogleMaps && s.googleMapsLink) {
+        msg += opts.noEmojis ? `Maps Link: ${s.googleMapsLink}\n` : `🗺️ Maps Link: ${s.googleMapsLink}\n`;
       }
-      if (s.contacts && s.contacts.length > 0) {
-        msg += `👥 Contacts: ${s.contacts.map((c) => `${c.name} (${c.phone})`).join(", ")}\n`;
+      if (opts.includeDescription && s.description) {
+        msg += opts.noEmojis ? `Description: ${s.description}\n` : `📝 Description: ${s.description}\n`;
       }
-      if (s.assignments && s.assignments.length > 0) {
-        msg += `👤 Assigned Staff: ${s.assignments.map((a) => a.user.name).join(", ")}\n`;
+      if (opts.includeContacts && s.contacts && s.contacts.length > 0) {
+        const contactList = s.contacts.map((c) => `${c.name} (${c.phone})`).join(", ");
+        msg += opts.noEmojis ? `Contacts: ${contactList}\n` : `👥 Contacts: ${contactList}\n`;
       }
-      msg += `📋 Status: ${s.status}\n\n`;
+      if (opts.includeAssignments && s.assignments && s.assignments.length > 0) {
+        const staffList = s.assignments.map((a) => a.user.name).join(", ");
+        msg += opts.noEmojis ? `Assigned Staff: ${staffList}\n` : `👤 Assigned Staff: ${staffList}\n`;
+      }
+      if (opts.includeStatus) {
+        msg += opts.noEmojis ? `Status: ${s.status}\n` : `📋 Status: ${s.status}\n`;
+      }
+      msg += `\n`;
     });
 
     msg += `Generated from MP Office Portal.`;
     return msg;
   };
+
+  // Re-compile share preview dynamically when settings or date change
+  useEffect(() => {
+    if (showShareModal) {
+      setShareMessage(compileDailySchedule(shareDate, shareOptions));
+    }
+  }, [shareDate, shareOptions, showShareModal, schedules]);
 
   // User role details
   const isAdmin = session?.user?.email === "admin@mpoffice.com";
@@ -402,11 +478,12 @@ function SchedulePageContent() {
 
   // Sync listener and connectivity polling
   useEffect(() => {
-    loadData(activeTab);
+    const fetchTab = viewMode === "calendar" ? "all" : activeTab;
+    loadData(fetchTab);
 
     const handleOnline = () => {
       setIsOnline(true);
-      loadData(activeTab);
+      loadData(fetchTab);
     };
 
     const handleOffline = () => {
@@ -420,7 +497,7 @@ function SchedulePageContent() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [activeTab]);
+  }, [activeTab, viewMode]);
 
   const getSocialBadgeColor = (status: string) => {
     switch (status) {
@@ -453,58 +530,545 @@ function SchedulePageContent() {
       case "TRAVELLING":
       case "ARRIVED":
         return "bg-blue-50 text-blue-800 border-blue-200";
-      case "POSTPONED":
-        return "bg-gray-100 text-gray-800 border-gray-300";
-      default:
-        return "bg-amber-50 text-amber-800 border-amber-200";
     }
+  };
+
+  const renderCalendarView = () => {
+    // Filter schedules for Month Grid, Week Grid, and Day Grid
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    
+    // Week View Days
+    const currentDay = calendarDate.getDay();
+    const startOfWeek = new Date(calendarDate);
+    startOfWeek.setDate(calendarDate.getDate() - currentDay);
+    
+    const weekDays: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      weekDays.push(d);
+    }
+    
+    // Month View Grid Days
+    const firstDay = new Date(year, month, 1);
+    const startDayOfWeek = firstDay.getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    const prevMonthTotalDays = new Date(year, month, 0).getDate();
+    
+    const monthGrid: { date: Date; isCurrentMonth: boolean }[] = [];
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      monthGrid.push({
+        date: new Date(year, month - 1, prevMonthTotalDays - i),
+        isCurrentMonth: false
+      });
+    }
+    for (let i = 1; i <= totalDays; i++) {
+      monthGrid.push({
+        date: new Date(year, month, i),
+        isCurrentMonth: true
+      });
+    }
+    const totalCells = (startDayOfWeek + totalDays) <= 35 ? 35 : 42;
+    const remaining = totalCells - monthGrid.length;
+    for (let i = 1; i <= remaining; i++) {
+      monthGrid.push({
+        date: new Date(year, month + 1, i),
+        isCurrentMonth: false
+      });
+    }
+
+    // Helper to format date string to match DB local timezone (en-CA: YYYY-MM-DD)
+    const getLocalDateStr = (d: Date) => {
+      return d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    };
+
+    // Helper to get schedules for a specific date
+    const getSchedulesForDate = (date: Date) => {
+      const targetStr = getLocalDateStr(date);
+      return schedules.filter(s => {
+        const sDate = new Date(s.startAt);
+        return getLocalDateStr(sDate) === targetStr;
+      });
+    };
+
+    const handlePrev = () => {
+      const newDate = new Date(calendarDate);
+      if (calendarView === "month") {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else if (calendarView === "week") {
+        newDate.setDate(newDate.getDate() - 7);
+      } else {
+        newDate.setDate(newDate.getDate() - 1);
+      }
+      setCalendarDate(newDate);
+    };
+
+    const handleNext = () => {
+      const newDate = new Date(calendarDate);
+      if (calendarView === "month") {
+        newDate.setMonth(newDate.getMonth() + 1);
+      } else if (calendarView === "week") {
+        newDate.setDate(newDate.getDate() + 7);
+      } else {
+        newDate.setDate(newDate.getDate() + 1);
+      }
+      setCalendarDate(newDate);
+    };
+
+    const handleToday = () => {
+      const now = new Date();
+      setCalendarDate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+    };
+
+    const getCalendarHeaderTitle = () => {
+      if (calendarView === "month") {
+        return calendarDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+      } else if (calendarView === "week") {
+        const first = weekDays[0];
+        const last = weekDays[6];
+        if (first.getMonth() === last.getMonth()) {
+          return `${first.toLocaleDateString("en-IN", { month: "short" })} ${first.getFullYear()}`;
+        }
+        return `${first.toLocaleDateString("en-IN", { month: "short" })} - ${last.toLocaleDateString("en-IN", { month: "short" })} ${last.getFullYear()}`;
+      } else {
+        return calendarDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      }
+    };
+
+    const getGoogleMapsRouteUrl = (schedulesForDay: ScheduleWithRelations[]) => {
+      if (schedulesForDay.length === 0) return "";
+      const venues = schedulesForDay.map(s => s.venue.trim()).filter(Boolean);
+      if (venues.length === 0) return "";
+      
+      const origin = encodeURIComponent(venues[0]);
+      const destination = encodeURIComponent(venues[venues.length - 1]);
+      if (venues.length === 1) {
+        return `https://www.google.com/maps/search/?api=1&query=${origin}`;
+      }
+      const waypoints = venues.slice(1, -1).map(v => encodeURIComponent(v)).join("|");
+      return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ""}`;
+    };
+
+    const currentDaySchedules = getSchedulesForDate(calendarDate);
+
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs space-y-5 font-sans">
+        {/* Calendar Nav & Sub-view buttons */}
+        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 pb-4 border-b border-gray-100">
+          <div className="flex items-center w-full md:w-auto gap-3">
+            <div className="flex items-center justify-between w-full md:w-auto gap-2">
+              <button onClick={handlePrev} className="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition text-gray-700 font-bold text-xs cursor-pointer shrink-0">
+                &larr; Prev
+              </button>
+              <h2 className="text-sm font-extrabold text-gray-900 font-sans text-center flex-1 md:flex-none md:min-w-[120px] px-2 truncate">
+                {getCalendarHeaderTitle()}
+              </h2>
+              <button onClick={handleNext} className="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition text-gray-700 font-bold text-xs cursor-pointer shrink-0">
+                Next &rarr;
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-gray-100 p-0.5 rounded-lg border border-gray-200 flex items-center justify-between md:justify-start shadow-xs">
+            {(["month", "week", "day"] as const).map((view) => (
+              <button
+                key={view}
+                onClick={() => setCalendarView(view)}
+                className={`flex-1 md:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition uppercase tracking-wider cursor-pointer text-center ${
+                  calendarView === view ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
+                }`}
+              >
+                {view}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Month View Layout */}
+        {calendarView === "month" && (
+          <div className="grid grid-cols-7 gap-1.5">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+              <div key={day} className="text-center font-bold text-gray-400 text-[10px] uppercase py-1">
+                {day}
+              </div>
+            ))}
+            {monthGrid.map(({ date, isCurrentMonth }, idx) => {
+              const daySchedules = getSchedulesForDate(date);
+              const isToday = getLocalDateStr(date) === getLocalDateStr(new Date());
+              return (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    setCalendarDate(date);
+                    setCalendarView("day");
+                  }}
+                  className={`min-h-[60px] md:min-h-[85px] p-1.5 md:p-2 border border-gray-100 rounded-xl flex flex-col justify-between hover:bg-amber-50/20 transition cursor-pointer ${
+                    isCurrentMonth ? "bg-white" : "bg-gray-50/40 text-gray-300"
+                  } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
+                >
+                  <span className={`text-[10px] font-bold self-end ${isToday ? "text-primary font-black" : "text-gray-600"}`}>
+                    {date.getDate()}
+                  </span>
+                  <div className="flex-1 flex flex-col gap-0.5 mt-1 overflow-y-auto max-h-[55px] pr-0.5">
+                    {/* Desktop: Show full text labels */}
+                    <div className="hidden md:flex flex-col gap-0.5">
+                      {daySchedules.map((s) => (
+                        <span
+                          key={s.id}
+                          className={`text-[8px] px-1 py-0.5 rounded truncate font-bold block leading-tight border ${
+                            s.priority === "HIGH" 
+                              ? "bg-red-50 text-red-700 border-red-100" 
+                              : s.priority === "LOW"
+                              ? "bg-gray-50 text-gray-500 border-gray-100"
+                              : "bg-amber-50 text-amber-800 border-amber-100"
+                          }`}
+                          title={s.title}
+                        >
+                          {new Date(s.startAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" })} {s.title}
+                        </span>
+                      ))}
+                    </div>
+                    {/* Mobile: Show dots */}
+                    <div className="flex md:hidden justify-center items-center gap-0.5 flex-wrap mt-0.5">
+                      {daySchedules.slice(0, 3).map((s) => (
+                        <span
+                          key={s.id}
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            s.priority === "HIGH" 
+                              ? "bg-red-500" 
+                              : s.priority === "LOW"
+                              ? "bg-gray-400"
+                              : "bg-amber-500"
+                          }`}
+                        />
+                      ))}
+                      {daySchedules.length > 3 && (
+                        <span className="text-[8px] text-gray-400 font-extrabold leading-none">+</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Week View Layout */}
+        {calendarView === "week" && (
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-2.5">
+            {weekDays.map((day, idx) => {
+              const daySchedules = getSchedulesForDate(day);
+              const isToday = getLocalDateStr(day) === getLocalDateStr(new Date());
+              return (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    setCalendarDate(day);
+                    setCalendarView("day");
+                  }}
+                  className={`border border-gray-100 rounded-xl p-3 flex flex-row md:flex-col gap-3 md:gap-2 min-h-0 md:min-h-[320px] hover:bg-amber-50/20 transition cursor-pointer ${
+                    isToday ? "bg-amber-50/10 ring-2 ring-primary ring-inset" : "bg-white"
+                  }`}
+                >
+                  <div className="border-r md:border-r-0 md:border-b border-gray-100 pr-3 md:pr-0 md:pb-1.5 flex flex-col items-center justify-center shrink-0 min-w-[45px]">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      {day.toLocaleDateString("en-IN", { weekday: "short" })}
+                    </span>
+                    <span className={`text-sm md:text-base font-black mt-0.5 ${isToday ? "text-primary" : "text-gray-900"}`}>
+                      {day.getDate()}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 flex flex-col gap-1.5 overflow-y-auto max-h-[260px] pr-0.5">
+                    {daySchedules.length === 0 ? (
+                      <span className="text-[10px] text-gray-300 italic self-start md:self-auto md:text-center md:mt-4 font-semibold">Free</span>
+                    ) : (
+                      daySchedules.map((s) => (
+                        <div
+                          key={s.id}
+                          className={`p-2 border rounded-lg text-[10px] font-bold text-gray-700 leading-snug space-y-1 ${
+                            s.priority === "HIGH" 
+                              ? "bg-red-50 border-red-150" 
+                              : s.priority === "LOW"
+                              ? "bg-gray-50 border-gray-150 text-gray-500"
+                              : "bg-amber-50 border-amber-150"
+                          }`}
+                        >
+                          <p className="line-clamp-2">{s.title}</p>
+                          <span className="text-[8px] text-gray-400 font-mono block">
+                            {new Date(s.startAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Day Timeline View Layout */}
+        {calendarView === "day" && (
+          <div className="space-y-4">
+            {/* Google Maps Route optimization banner */}
+            {currentDaySchedules.length > 0 && (
+              <div className="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-3.5 rounded-xl">
+                <div>
+                  <h4 className="text-xs font-bold text-emerald-950">Geographic Convoy Route Planning</h4>
+                  <p className="text-[10px] text-emerald-700 mt-0.5">Optimize driver navigation for today's {currentDaySchedules.length} scheduled visits.</p>
+                </div>
+                <a
+                  href={getGoogleMapsRouteUrl(currentDaySchedules)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <MapIcon className="w-3.5 h-3.5" />
+                  <span>Open Route Maps</span>
+                </a>
+              </div>
+            )}
+
+            {currentDaySchedules.length === 0 ? (
+              <div className="text-center py-16 border border-dashed border-gray-200 rounded-xl text-gray-400 text-xs italic">
+                No schedules mapped for this date.
+              </div>
+            ) : (
+              <div className="relative border-l-2 border-gray-150 pl-6 ml-3 space-y-6">
+                {currentDaySchedules.map((s, idx) => {
+                  const sStart = new Date(s.startAt);
+                  const sEnd = new Date(s.endAt);
+                  const nextS = currentDaySchedules[idx + 1];
+                  
+                  let gapAlert = null;
+                  if (nextS) {
+                    const nextStart = new Date(nextS.startAt).getTime();
+                    const currEnd = sEnd.getTime();
+                    const diffMins = Math.floor((nextStart - currEnd) / 60000);
+                    
+                    if (diffMins < 0) {
+                      gapAlert = (
+                        <div className="my-2 p-2 bg-red-50 border border-red-200 rounded-lg text-[10px] font-bold text-red-700 flex items-center gap-1.5 max-w-sm">
+                          <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                          <span>Timeline Conflict: Overlap of {Math.abs(diffMins)} minutes!</span>
+                        </div>
+                      );
+                    } else if (diffMins > 0) {
+                      gapAlert = (
+                        <div className="my-2 p-2 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-[10px] font-bold text-gray-500 flex items-center gap-1.5 max-w-sm">
+                          <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span>Convoy Travel Gap: {diffMins} minutes</span>
+                        </div>
+                      );
+                    }
+                  }
+
+                  return (
+                    <div key={s.id} className="relative">
+                      {/* Bullet point node */}
+                      <span className={`absolute -left-[31px] top-1.5 w-3.5 h-3.5 rounded-full border-2 bg-white ${
+                        s.status === "COMPLETED"
+                          ? "border-emerald-600 bg-emerald-50"
+                          : s.status === "CANCELLED"
+                          ? "border-red-600 bg-red-50"
+                          : "border-primary bg-amber-50"
+                      }`} />
+                      
+                      <div className="bg-gray-50/50 hover:bg-gray-50 border border-gray-150 rounded-xl p-4.5 max-w-2xl transition">
+                        <div className="flex justify-between items-start gap-3">
+                          <div>
+                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider block">
+                              {sStart.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} - {sEnd.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })}
+                            </span>
+                            <h3 className="text-sm font-bold text-gray-900 mt-1">{s.title}</h3>
+                            <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                              <span>{s.venue}</span>
+                            </p>
+                          </div>
+                          <span className={`text-[9px] px-2 py-0.5 border rounded-full uppercase font-bold shrink-0 ${getStatusColor(s.status)}`}>
+                            {s.status.replace("_", " ")}
+                          </span>
+                        </div>
+
+                        {s.description && (
+                          <p className="text-xs text-gray-600 mt-2.5 leading-relaxed">{s.description}</p>
+                        )}
+
+                        <div className="mt-3.5 pt-3 border-t border-gray-200 flex justify-between items-center text-[10px] text-gray-500 font-medium">
+                          <span>Assigned Staff: {s.assignments && s.assignments.length > 0 ? s.assignments.map(a => a.user.name).join(", ") : "None"}</span>
+                          <Link href={`/schedule/${s.id}`} className="text-primary font-bold hover:underline">Manage Visit</Link>
+                        </div>
+                      </div>
+                      
+                      {gapAlert}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Swipe to Refresh touch gesture states
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const startY = useRef(0);
+  const currentY = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0 && !refreshing) {
+      startY.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isPulling || refreshing) return;
+    currentY.current = e.touches[0].clientY;
+    const diff = currentY.current - startY.current;
+    
+    if (diff > 0) {
+      const dist = Math.min(diff * 0.4, 75);
+      setPullDistance(dist);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!isPulling) return;
+    setIsPulling(false);
+    
+    if (pullDistance > 55) {
+      setRefreshing(true);
+      setPullDistance(30);
+      try {
+        const fetchTab = viewMode === "calendar" ? "all" : activeTab;
+        await loadData(fetchTab);
+      } finally {
+        setRefreshing(false);
+        setPullDistance(0);
+      }
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  // Bottom sheet swipe down to close gesture states
+  const [sheetOffset, setSheetOffset] = useState(0);
+  const sheetStartY = useRef(0);
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
+
+  const handleSheetTouchStart = (e: React.TouchEvent) => {
+    sheetStartY.current = e.touches[0].clientY;
+    setIsDraggingSheet(true);
+  };
+
+  const handleSheetTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingSheet) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - sheetStartY.current;
+    if (diff > 0) {
+      setSheetOffset(diff);
+    }
+  };
+
+  const handleSheetTouchEnd = () => {
+    setIsDraggingSheet(false);
+    if (sheetOffset > 100) {
+      setShowShareModal(false);
+    }
+    setSheetOffset(0);
   };
 
   return (
     <PageLayout>
-      {/* Inline Toast Notifications */}
+      <div 
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className="min-h-screen relative print:hidden"
+      >
+        {/* Pull to Refresh Indicator */}
+        {(pullDistance > 0 || refreshing) && (
+          <div 
+            className="flex justify-center items-center transition-all duration-75 overflow-hidden w-full bg-transparent mb-4"
+            style={{ height: `${pullDistance}px`, opacity: Math.min(pullDistance / 55, 1) }}
+          >
+            <div className="bg-white border border-gray-200 rounded-full py-1.5 px-3 shadow-md flex items-center gap-1.5 animate-bounce">
+              <RefreshCw className={`w-3.5 h-3.5 text-primary ${refreshing || pullDistance > 55 ? "animate-spin" : ""}`} />
+              <span className="text-[9px] font-extrabold text-gray-500 uppercase tracking-wide">
+                {refreshing ? "Refreshing..." : pullDistance > 55 ? "Release to refresh" : "Pull down to refresh"}
+              </span>
+            </div>
+          </div>
+        )}
+      {/* Toast Notifications (Bottom Center) */}
       {toast && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg border border-gray-800 animate-slide-in">
-          <CheckCircle2 className={`w-4 h-4 ${toast.type === "success" ? "text-emerald-400" : "text-red-400"}`} />
-          <span className="text-xs font-semibold">{toast.message}</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 bg-gray-950 text-white px-4.5 py-3 rounded-xl shadow-2xl border border-gray-800 animate-bounce">
+          <CheckCircle2 className={`w-4.5 h-4.5 ${toast.type === "success" ? "text-emerald-400" : "text-red-400"}`} />
+          <span className="text-xs font-bold font-sans tracking-wide">{toast.message}</span>
         </div>
       )}
 
       {/* Header and Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 font-sans">MP Tour Schedule</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Real-time schedule check-offs and contacts</p>
+      <div className="flex flex-col gap-4 mb-5 font-sans">
+        {/* Title & Primary Add Button */}
+        <div className="flex justify-between items-center gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 leading-none">MP Tour Schedule</h1>
+            <p className="text-[11px] text-gray-500 mt-1">Real-time schedule check-offs and contacts</p>
+          </div>
+          <button
+            onClick={() => { setEditScheduleId(null); setShowAddModal(true); }}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-amber-700 text-white font-bold rounded-xl shadow-sm transition text-xs cursor-pointer focus:outline-none shrink-0"
+          >
+            <span>+ Add New</span>
+          </button>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto flex-wrap">
-          {/* Share Daily Compilation on WhatsApp (available for Admin/PA/Coordinators) */}
+
+        {/* View Selection & Compilation Tools */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Calendar vs List Toggle */}
+          <div className="flex-1 min-w-[150px] bg-gray-150 p-0.5 rounded-xl border border-gray-200 flex items-center shadow-xs">
+            <button
+              onClick={() => setViewMode("calendar")}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer text-center ${
+                viewMode === "calendar" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              Calendar
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer text-center ${
+                viewMode === "list" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              List
+            </button>
+          </div>
+
+          {/* Share Daily Compilation */}
           {(isAdmin || userRoles.includes("Super Admin") || userRoles.includes("MP Office Admin") || userRoles.includes("Schedule Coordinator")) && (
             <button
               onClick={() => {
                 setShareMessage(compileDailySchedule(shareDate));
                 setShowShareModal(true);
               }}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-lg shadow-sm transition text-xs focus:outline-none"
+              className="flex items-center justify-center gap-1.5 px-4.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-xl shadow-sm transition text-xs cursor-pointer focus:outline-none"
               title="Share daily compiled schedules on WhatsApp"
             >
               <WhatsAppIcon className="w-3.5 h-3.5" />
-              <span>Share Daily</span>
+              <span className="hidden sm:inline">Share Daily</span>
+              <span className="sm:hidden">Share</span>
             </button>
           )}
-
-          <button
-            onClick={() => loadData(activeTab)}
-            className="flex items-center justify-center p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition text-gray-700 shadow-sm"
-            aria-label="Refresh schedules"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          </button>
-          <button
-            onClick={() => { setEditScheduleId(null); setShowAddModal(true); }}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-amber-700 text-white font-medium rounded-lg shadow-sm transition text-xs focus:outline-none"
-          >
-            + Add New
-          </button>
         </div>
       </div>
 
@@ -526,24 +1090,28 @@ function SchedulePageContent() {
       )}
 
       {/* Tab Filter Links */}
-      <div className="flex border-b border-gray-200 mb-5 bg-white rounded-lg shadow-xs overflow-x-auto">
-        {(["today", "tomorrow", "weekly", "all"] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => handleTabChange(tab)}
-            className={`flex-1 min-w-[70px] py-2.5 text-xs font-bold border-b-2 uppercase tracking-wider transition ${
-              activeTab === tab
-                ? "border-primary text-primary"
-                : "border-transparent text-gray-500 hover:text-gray-900"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      {viewMode === "list" && (
+        <div className="flex border-b border-gray-200 mb-5 bg-white rounded-lg shadow-xs overflow-x-auto">
+          {(["today", "tomorrow", "weekly", "all"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => handleTabChange(tab)}
+              className={`flex-1 min-w-[70px] py-2.5 text-xs font-bold border-b-2 uppercase tracking-wider transition ${
+                activeTab === tab
+                  ? "border-primary text-primary"
+                  : "border-transparent text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Schedules Content */}
-      {loading && schedules.length === 0 ? (
+      {viewMode === "calendar" ? (
+        renderCalendarView()
+      ) : loading && schedules.length === 0 ? (
         <div className="text-center py-12 text-gray-500 text-xs font-sans">Loading schedules...</div>
       ) : schedules.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-gray-300 rounded-xl text-gray-400 text-xs bg-white font-sans font-semibold">
@@ -601,21 +1169,25 @@ function SchedulePageContent() {
                     </span>
                   </div>
                 </div>
-
-                {/* Priority, Social, and Status Dropdown */}
-                {!isReadOnlyViewer && (
-                  <div className="flex gap-1.5 items-center shrink-0 flex-wrap justify-end">
-                    {schedule.priority && (
-                      <span className="bg-red-50 text-red-700 border border-red-100 text-[8px] font-bold uppercase px-1.5 py-0.5 rounded tracking-wide">
-                        {schedule.priority}
-                      </span>
-                    )}
-                    {schedule.socialMediaUpdate && schedule.socialMediaUpdate.isRequired && (
-                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wide ${getSocialBadgeColor(schedule.socialMediaUpdate.status)}`}>
-                        SM: {schedule.socialMediaUpdate.status.replace("_", " ")}
-                      </span>
-                    )}
-                    {canEdit ? (
+                <div className="flex items-center gap-1.5 flex-wrap font-sans">
+                  {schedule.priority && (
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase ${
+                      schedule.priority === "HIGH"
+                        ? "bg-red-50 text-red-700 border-red-150"
+                        : schedule.priority === "LOW"
+                        ? "bg-gray-50 text-gray-500 border-gray-150"
+                        : "bg-amber-50 text-amber-800 border-amber-150"
+                    }`}>
+                      {schedule.priority}
+                    </span>
+                  )}
+                  {schedule.category && (
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded border bg-gray-50 text-gray-600 border-gray-150 uppercase">
+                      {schedule.category}
+                    </span>
+                  )}
+                  {!isReadOnlyViewer ? (
+                    canEdit ? (
                       <select
                         value={schedule.status}
                         onChange={async (e) => {
@@ -683,12 +1255,16 @@ function SchedulePageContent() {
                         <option value="CANCELLED">Cancelled</option>
                       </select>
                     ) : (
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getStatusColor(schedule.status)}`}>
-                        {schedule.status}
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full border uppercase font-extrabold ${getStatusColor(schedule.status)}`}>
+                        {schedule.status.replace("_", " ")}
                       </span>
-                    )}
-                  </div>
-                )}
+                    )
+                  ) : (
+                    <span className={`text-[9px] px-2 py-0.5 rounded-full border uppercase font-extrabold ${getStatusColor(schedule.status)}`}>
+                      {schedule.status.replace("_", " ")}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Visit Description */}
@@ -911,27 +1487,114 @@ function SchedulePageContent() {
 
       {/* Daily Compilation WhatsApp Share Modal */}
       {showShareModal && (
-        <div className="fixed inset-0 bg-black/55 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-5 max-w-sm w-full shadow-lg border border-gray-150 animate-slide-up">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-2.5 mb-3.5">
+        <div 
+          onClick={() => setShowShareModal(false)}
+          className="fixed inset-0 bg-black/55 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              transform: sheetOffset > 0 ? `translateY(${sheetOffset}px)` : undefined,
+              transition: isDraggingSheet ? "none" : "transform 0.2s ease-out"
+            }}
+            className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl border border-gray-150 max-h-[88vh] flex flex-col focus:outline-none"
+          >
+            {/* Mobile Drag Indicator / Pull handle */}
+            <div 
+              onTouchStart={handleSheetTouchStart}
+              onTouchMove={handleSheetTouchMove}
+              onTouchEnd={handleSheetTouchEnd}
+              className="w-full flex justify-center py-3 cursor-row-resize sm:hidden shrink-0 select-none active:bg-gray-50"
+            >
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+
+            <div className="flex justify-between items-center border-b border-gray-100 px-5 py-3 shrink-0">
               <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wide">Share Daily Schedule</h3>
-              <button onClick={() => setShowShareModal(false)} className="text-gray-400 hover:text-gray-600 focus:outline-none">
+              <button onClick={() => setShowShareModal(false)} className="text-gray-400 hover:text-gray-600 focus:outline-none p-1 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="overflow-y-auto px-5 py-4 space-y-4 text-xs flex-1">
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Select Schedule Date</label>
                 <input
                   type="date"
                   value={shareDate}
-                  onChange={(e) => {
-                    setShareDate(e.target.value);
-                    setShareMessage(compileDailySchedule(e.target.value));
-                  }}
+                  onChange={(e) => setShareDate(e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-700 text-xs"
                 />
+              </div>
+
+              {/* Share Options Filters Checklist */}
+              <div className="border border-gray-200 rounded-xl p-3 bg-gray-50/50 space-y-2">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1.5">Include in message:</span>
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-gray-700 font-sans">
+                  <label className="flex items-center gap-2 cursor-pointer col-span-2 pb-1.5 mb-1.5 border-b border-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={shareOptions.onlyConfirmed}
+                      onChange={(e) => updateShareOption("onlyConfirmed", e.target.checked)}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span className="text-emerald-800 font-bold">Only Confirmed (Exclude Drafts)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareOptions.includeDescription}
+                      onChange={(e) => updateShareOption("includeDescription", e.target.checked)}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span>Description</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareOptions.includeGoogleMaps}
+                      onChange={(e) => updateShareOption("includeGoogleMaps", e.target.checked)}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span>Maps Link</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareOptions.includeContacts}
+                      onChange={(e) => updateShareOption("includeContacts", e.target.checked)}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span>Contacts</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareOptions.includeAssignments}
+                      onChange={(e) => updateShareOption("includeAssignments", e.target.checked)}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span>Assigned Staff</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareOptions.includeStatus}
+                      onChange={(e) => updateShareOption("includeStatus", e.target.checked)}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span>Status</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer col-span-2 mt-1 pt-1 border-t border-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={shareOptions.noEmojis}
+                      onChange={(e) => updateShareOption("noEmojis", e.target.checked)}
+                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span>No Emojis (Clean formatting)</span>
+                  </label>
+                </div>
               </div>
 
               <div>
@@ -939,32 +1602,44 @@ function SchedulePageContent() {
                 <textarea
                   value={shareMessage}
                   onChange={(e) => setShareMessage(e.target.value)}
-                  rows={8}
+                  rows={5}
                   className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-700 text-[11px] leading-normal font-sans"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 mt-4 pt-3.5 border-t border-gray-100">
+            <div className="flex justify-between items-center px-5 py-4 border-t border-gray-100 shrink-0 flex-wrap gap-2">
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(shareMessage);
-                  showToast("Copied to clipboard!");
+                  window.print();
                 }}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none"
+                className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 font-bold rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer focus:outline-none"
+                title="Print Daily Schedule to PDF"
               >
-                Copy Message
+                <span>Print PDF</span>
               </button>
-              <a
-                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setShowShareModal(false)}
-                className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs transition focus:outline-none"
-              >
-                <WhatsAppIcon className="w-3 h-3" />
-                <span>Send WhatsApp</span>
-              </a>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(shareMessage);
+                    showToast("Copied to clipboard!");
+                  }}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none cursor-pointer"
+                >
+                  Copy
+                </button>
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowShareModal(false)}
+                  className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs transition focus:outline-none cursor-pointer"
+                >
+                  <WhatsAppIcon className="w-3.5 h-3.5" />
+                  <span>Send</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -1002,6 +1677,94 @@ function SchedulePageContent() {
         onSave={() => loadData(activeTab)} 
         editId={editScheduleId} 
       />
+      </div>
+
+      {/* Printable Tabular Daily Schedule PDF Layout */}
+      <div className="hidden print:block font-sans p-6 text-gray-900 bg-white w-full">
+        <div className="text-center mb-8 border-b-2 border-gray-800 pb-4">
+          <h1 className="text-xl font-black uppercase tracking-wider">MP Tour Schedule</h1>
+          <p className="text-xs text-gray-500 mt-1.5 font-semibold">
+            Date: {new Date(shareDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
+        </div>
+
+        <table className="w-full border-collapse border border-gray-400 text-[11px]">
+          <thead>
+            <tr className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider">
+              <th className="border border-gray-400 p-2 text-center w-12">S.No</th>
+              <th className="border border-gray-400 p-2 text-left w-32">Time</th>
+              <th className="border border-gray-400 p-2 text-left">Visit Details / Venue</th>
+              {shareOptions.includeStatus && <th className="border border-gray-400 p-2 text-left w-24">Status</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {schedules
+              .filter((s) => {
+                const sDate = new Date(s.startAt);
+                const localDateStr = sDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+                return localDateStr === shareDate;
+              })
+              .filter((s) => !shareOptions.onlyConfirmed || s.status !== "DRAFT")
+              .map((s, idx) => {
+                const startTime = new Date(s.startAt).toLocaleTimeString("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: "Asia/Kolkata",
+                });
+                const endTime = new Date(s.endAt).toLocaleTimeString("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: "Asia/Kolkata",
+                });
+
+                return (
+                  <tr key={s.id} className="align-top">
+                    <td className="border border-gray-400 p-2 text-center">{idx + 1}</td>
+                    <td className="border border-gray-400 p-2 font-mono font-semibold">
+                      {startTime} - {endTime}
+                    </td>
+                    <td className="border border-gray-400 p-2 space-y-1">
+                      <div className="font-bold text-gray-900 text-xs">{s.title}</div>
+                      <div className="text-[10px] text-gray-505 text-gray-500 font-semibold">📍 Venue: {s.venue}</div>
+                      {shareOptions.includeGoogleMaps && s.googleMapsLink && (
+                        <div className="text-[9px] text-blue-600 underline">Maps Link: {s.googleMapsLink}</div>
+                      )}
+                      {shareOptions.includeDescription && s.description && (
+                        <p className="text-[10px] text-gray-600 leading-normal italic">{s.description}</p>
+                      )}
+                      {shareOptions.includeContacts && s.contacts && s.contacts.length > 0 && (
+                        <div className="text-[9px] text-gray-500">
+                          Contacts: {s.contacts.map((c) => `${c.name} (${c.phone})`).join(", ")}
+                        </div>
+                      )}
+                      {shareOptions.includeAssignments && s.assignments && s.assignments.length > 0 && (
+                        <div className="text-[9px] text-gray-400">Assigned Staff: {s.assignments.map(a => a.user.name).join(", ")}</div>
+                      )}
+                    </td>
+                    {shareOptions.includeStatus && (
+                      <td className="border border-gray-400 p-2 text-[10px] font-bold uppercase tracking-wider">{s.status.replace("_", " ")}</td>
+                    )}
+                  </tr>
+                );
+              })}
+            {schedules.filter((s) => {
+              const sDate = new Date(s.startAt);
+              const localDateStr = sDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+              return localDateStr === shareDate;
+            }).filter((s) => !shareOptions.onlyConfirmed || s.status !== "DRAFT").length === 0 && (
+              <tr>
+                <td colSpan={shareOptions.includeStatus ? 4 : 3} className="border border-gray-400 p-8 text-center text-gray-400 italic">
+                  No visits scheduled for this date.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        
+        <div className="mt-12 text-[10px] text-gray-400 text-right">
+          Generated via MP Office Portal on {new Date().toLocaleDateString("en-IN")}
+        </div>
+      </div>
     </PageLayout>
   );
 }
