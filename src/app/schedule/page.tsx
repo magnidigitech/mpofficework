@@ -899,7 +899,7 @@ function SchedulePageContent() {
 
                         <div className="mt-3.5 pt-3 border-t border-gray-200 flex justify-between items-center text-[10px] text-gray-500 font-medium">
                           <span>Assigned Staff: {s.assignments && s.assignments.length > 0 ? s.assignments.map(a => a.user.name).join(", ") : "None"}</span>
-                          <Link href={`/schedule/${s.id}`} className="text-primary font-bold hover:underline">Manage Visit</Link>
+                          <Link href={`/schedule/${s.id}/checklist`} className="text-primary font-bold hover:underline">Manage Visit</Link>
                         </div>
                       </div>
                       
