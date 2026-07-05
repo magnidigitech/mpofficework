@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as zod from "zod";
@@ -12,19 +12,39 @@ import Tesseract from "tesseract.js";
 
 const ttdMemberSchema = zod.object({
   fullName: zod.string().min(2, "Member name must be at least 2 characters"),
-  age: zod.number().min(1, "Age must be a positive number"),
-  gender: zod.enum(["MALE", "FEMALE", "OTHER"]),
-  mobile: zod.string().optional().nullable().or(zod.literal("")),
+  age: zod.number({ message: "Age is required" }).min(1, "Age must be a positive number"),
+  gender: zod.enum(["MALE", "FEMALE", "OTHER"], { message: "Gender is required" }),
+  mobile: zod.string()
+    .length(10, "Mobile number must be exactly 10 digits")
+    .regex(/^\d+$/, "Mobile number must contain digits only")
+    .optional()
+    .nullable()
+    .or(zod.literal("")),
   relationshipToApplicant: zod.string().optional().nullable().or(zod.literal("")),
-  identityType: zod.enum(["AADHAAR", "VOTER_ID", "PASSPORT"]),
+  identityType: zod.enum(["AADHAAR", "VOTER_ID", "PASSPORT"], { message: "Identity type is required" }),
   identityLastFourDigits: zod.string().min(4, "Identity reference must be at least 4 digits"),
   isPrimaryApplicant: zod.boolean(),
+}).refine((data) => {
+  if (data.identityType === "AADHAAR") {
+    return data.identityLastFourDigits.length === 12 && /^\d{12}$/.test(data.identityLastFourDigits);
+  }
+  return true;
+}, {
+  message: "Aadhaar number must be exactly 12 digits",
+  path: ["identityLastFourDigits"],
 });
 
 const ttdRequestSchema = zod.object({
   applicantName: zod.string().min(2, "Applicant name is required"),
-  applicantMobile: zod.string().min(10, "Valid mobile number is required"),
-  alternateMobile: zod.string().optional().nullable().or(zod.literal("")),
+  applicantMobile: zod.string()
+    .length(10, "Mobile number must be exactly 10 digits")
+    .regex(/^\d+$/, "Mobile number must contain digits only"),
+  alternateMobile: zod.string()
+    .length(10, "Mobile number must be exactly 10 digits")
+    .regex(/^\d+$/, "Mobile number must contain digits only")
+    .optional()
+    .nullable()
+    .or(zod.literal("")),
   address: zod.string().optional().nullable().or(zod.literal("")),
   district: zod.string().optional().nullable().or(zod.literal("")),
   constituency: zod.string().optional().nullable().or(zod.literal("")),
@@ -40,7 +60,12 @@ const ttdRequestSchema = zod.object({
   sourceDescription: zod.string().optional().nullable().or(zod.literal("")),
   relatedScheduleId: zod.string().optional().nullable().or(zod.literal("")),
   referencePersonName: zod.string().optional().nullable().or(zod.literal("")),
-  referencePersonMobile: zod.string().optional().nullable().or(zod.literal("")),
+  referencePersonMobile: zod.string()
+    .length(10, "Mobile number must be exactly 10 digits")
+    .regex(/^\d+$/, "Mobile number must contain digits only")
+    .optional()
+    .nullable()
+    .or(zod.literal("")),
   preferredDarshanDate: zod.string().min(1, "Preferred Darshan date is required"),
   alternateDarshanDate: zod.string().optional().nullable().or(zod.literal("")),
   notes: zod.string().optional().nullable().or(zod.literal("")),
@@ -57,6 +82,7 @@ interface TtdRequestModalProps {
 }
 
 export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -71,7 +97,7 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
   const [ocrSuccess, setOcrSuccess] = useState<string | null>(null);
   const [scannedDetails, setScannedDetails] = useState<{ fullName: string, age: number, gender: "MALE" | "FEMALE" | "OTHER", identityLastFourDigits: string } | null>(null);
 
-  const { register, control, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<TtdFormValues>({
+  const { register, control, handleSubmit, reset, watch, setValue, trigger, formState: { errors } } = useForm<TtdFormValues>({
     resolver: zodResolver(ttdRequestSchema),
     defaultValues: {
       applicantName: "",
@@ -89,7 +115,7 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
       alternateDarshanDate: "",
       notes: "",
       documentsStatus: "NOT_SUBMITTED",
-      members: [{ fullName: "", age: 30, gender: "MALE", mobile: "", relationshipToApplicant: "", identityType: "AADHAAR", identityLastFourDigits: "", isPrimaryApplicant: true }],
+      members: [],
     },
   });
 
@@ -165,6 +191,21 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
     }
   }, [isOpen]);
 
+  // Listen to Escape key to close the modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   // Run duplicate check on step 6
   useEffect(() => {
     if (isOpen && ttdStep === 6) {
@@ -212,10 +253,28 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
         alternateDarshanDate: "",
         notes: "",
         documentsStatus: "NOT_SUBMITTED",
-        members: [{ fullName: "", age: 30, gender: "MALE", mobile: "", relationshipToApplicant: "", identityType: "AADHAAR", identityLastFourDigits: "", isPrimaryApplicant: true }],
+        members: [],
       });
     }
   }, [isOpen, reset]);
+
+  const handleContinue = async () => {
+    let fieldsToValidate: any[] = [];
+    if (ttdStep === 1) {
+      fieldsToValidate = ["applicantName", "applicantMobile"];
+    } else if (ttdStep === 2) {
+      fieldsToValidate = ["sourceType"];
+    } else if (ttdStep === 3) {
+      fieldsToValidate = ["preferredDarshanDate"];
+    } else if (ttdStep === 4) {
+      fieldsToValidate = ["members"];
+    }
+
+    const isValid = await trigger(fieldsToValidate);
+    if (isValid) {
+      setTtdStep(ttdStep + 1);
+    }
+  };
 
   const onSubmit = async (data: TtdFormValues) => {
     setError(null);
@@ -230,6 +289,7 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
 
         if (res.ok) {
           setSuccess("TTD Letter application created successfully!");
+          scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
           setTimeout(() => {
             onSave();
             onClose();
@@ -237,11 +297,18 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
         } else {
           const errData = await res.json();
           setError(errData.error || "Failed to submit letter application.");
+          scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
         }
       } catch (err: any) {
         setError(err.message || "An unexpected error occurred.");
+        scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       }
     });
+  };
+
+  const onError = (errors: any) => {
+    console.error("Validation errors on submit:", errors);
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (!isOpen) return null;
@@ -293,7 +360,7 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6 space-y-5">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex gap-2 items-start shadow-sm">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -318,6 +385,7 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
                     <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1.5">Applicant Name *</label>
                     <input
                       type="text"
+                      autoFocus
                       placeholder="Applicant Name"
                       {...register("applicantName")}
                       className="w-full border border-gray-250 hover:border-gray-300 focus:border-emerald-600 rounded-xl px-3 py-2 text-xs font-sans text-gray-900 focus:outline-none transition duration-150"
@@ -498,16 +566,19 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider font-sans">Step 4: Pilgrim Details</h4>
+                  {errors.members?.message && (
+                    <span className="text-red-500 text-[10px] font-semibold">{errors.members.message}</span>
+                  )}
                   <button
                     type="button"
                     onClick={() =>
                       appendMember({
                         fullName: "",
-                        age: 30,
-                        gender: "MALE",
+                        age: undefined as any,
+                        gender: "" as any,
                         mobile: "",
                         relationshipToApplicant: "",
-                        identityType: "AADHAAR",
+                        identityType: "" as any,
                         identityLastFourDigits: "",
                         isPrimaryApplicant: memberFields.length === 0,
                       })
@@ -610,6 +681,9 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
                             {...register(`members.${idx}.fullName` as const)}
                             className="w-full border border-gray-250 hover:border-gray-300 focus:border-emerald-600 rounded-xl px-3 py-1.5 text-xs text-gray-900 focus:outline-none transition duration-150"
                           />
+                          {errors.members?.[idx]?.fullName && (
+                            <span className="text-red-500 text-[10px] mt-1 font-semibold">{errors.members[idx]?.fullName?.message}</span>
+                          )}
                         </div>
 
                         <div className="flex flex-col">
@@ -619,6 +693,9 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
                             {...register(`members.${idx}.age` as const, { valueAsNumber: true })}
                             className="w-full border border-gray-250 hover:border-gray-300 focus:border-emerald-600 rounded-xl px-3 py-1.5 text-xs text-gray-900 focus:outline-none transition duration-150"
                           />
+                          {errors.members?.[idx]?.age && (
+                            <span className="text-red-500 text-[10px] mt-1 font-semibold">{errors.members[idx]?.age?.message}</span>
+                          )}
                         </div>
 
                         <div className="flex flex-col">
@@ -626,10 +703,14 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
                             {...register(`members.${idx}.gender` as const)}
                             className="h-8 text-xs border border-gray-250 hover:border-gray-300 focus:border-emerald-600 rounded-xl px-2 bg-white focus:outline-none cursor-pointer font-sans font-semibold"
                           >
+                            <option value="">Select Gender</option>
                             <option value="MALE">Male</option>
                             <option value="FEMALE">Female</option>
                             <option value="OTHER">Other</option>
                           </select>
+                          {errors.members?.[idx]?.gender && (
+                            <span className="text-red-500 text-[10px] mt-1 font-semibold">{errors.members[idx]?.gender?.message}</span>
+                          )}
                         </div>
                       </div>
 
@@ -639,10 +720,14 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
                             {...register(`members.${idx}.identityType` as const)}
                             className="h-8 text-xs border border-gray-250 hover:border-gray-300 focus:border-emerald-600 rounded-xl px-2 bg-white focus:outline-none cursor-pointer font-sans font-semibold"
                           >
+                            <option value="">Select ID Type</option>
                             <option value="AADHAAR">Aadhaar Card</option>
                             <option value="VOTER_ID">Voter ID</option>
                             <option value="PASSPORT">Passport</option>
                           </select>
+                          {errors.members?.[idx]?.identityType && (
+                            <span className="text-red-500 text-[10px] mt-1 font-semibold">{errors.members[idx]?.identityType?.message}</span>
+                          )}
                         </div>
 
                         <div className="flex flex-col">
@@ -653,6 +738,9 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
                             {...register(`members.${idx}.identityLastFourDigits` as const)}
                             className="w-full border border-gray-250 hover:border-gray-300 focus:border-emerald-600 rounded-xl px-3 py-1.5 text-xs text-gray-900 font-mono focus:outline-none transition duration-150"
                           />
+                          {errors.members?.[idx]?.identityLastFourDigits && (
+                            <span className="text-red-500 text-[10px] mt-1 font-semibold">{errors.members[idx]?.identityLastFourDigits?.message}</span>
+                          )}
                         </div>
 
                         <div className="flex flex-col">
@@ -712,6 +800,33 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
             {ttdStep === 6 && (
               <div className="space-y-4">
                 <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Step 6: Review details & Duplicate Checks</h4>
+
+                {Object.keys(errors).length > 0 && (
+                  <div className="p-4 bg-red-50/50 border border-red-250 rounded-2xl text-xs text-red-900 space-y-1.5 font-sans animate-fade-in">
+                    <h5 className="font-extrabold text-red-800 flex items-center gap-1.5">
+                      <AlertCircle className="w-4.5 h-4.5 text-red-700 shrink-0" />
+                      <span>Form contains validation errors:</span>
+                    </h5>
+                    <ul className="list-disc pl-5 font-semibold space-y-0.5">
+                      {Object.entries(errors).map(([field, err]: [string, any]) => {
+                        if (field === "members") {
+                          if (Array.isArray(err)) {
+                            return err.flatMap((memberErr, idx) => {
+                              if (!memberErr) return [];
+                              return Object.entries(memberErr).map(([subField, subErr]: [string, any]) => (
+                                <li key={`${idx}-${subField}`}>
+                                  Pilgrim #{idx + 1}: {subErr.message}
+                                </li>
+                              ));
+                            });
+                          }
+                          return <li key={field}>{err.message}</li>;
+                        }
+                        return <li key={field}>{err.message}</li>;
+                      })}
+                    </ul>
+                  </div>
+                )}
                 
                 {loadingWarnings ? (
                   <div className="p-4 bg-gray-50/50 border border-gray-250 rounded-2xl text-xs text-gray-500 font-bold animate-pulse flex items-center gap-2">
@@ -777,7 +892,7 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
             {ttdStep < 6 ? (
               <button
                 type="button"
-                onClick={() => setTtdStep(ttdStep + 1)}
+                onClick={handleContinue}
                 className="px-4.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer focus:outline-none shadow-xs"
               >
                 <span>Continue</span>
@@ -786,7 +901,7 @@ export function TtdRequestModal({ isOpen, onClose, onSave }: TtdRequestModalProp
             ) : (
               <button
                 type="button"
-                onClick={handleSubmit(onSubmit)}
+                onClick={handleSubmit(onSubmit, onError)}
                 disabled={isPending}
                 className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer focus:outline-none shadow-xs"
               >
@@ -877,14 +992,41 @@ function parseAadhaarText(text: string) {
   ];
   
   let name = "";
-  for (const line of lines) {
-    const cleanLine = line.replace(/[^A-Za-z\s]/g, "").trim();
-    if (cleanLine.split(/\s+/).length >= 2) {
-      const words = cleanLine.toUpperCase().split(/\s+/);
-      const isHeader = words.some(w => excludeKeywords.some(kw => w.includes(kw)));
-      if (!isHeader) {
-        name = cleanLine;
-        break;
+  // Search upwards from DOB/Gender first as it is more reliable for English names on Aadhaar front side
+  let dobOrGenderIndex = -1;
+  const dobOrGenderRegex = /(?:DOB|Birth|YOB|Year of Birth|MALE|FEMALE)/i;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].match(dobOrGenderRegex)) {
+      dobOrGenderIndex = i;
+      break;
+    }
+  }
+
+  if (dobOrGenderIndex > 0) {
+    for (let i = dobOrGenderIndex - 1; i >= 0; i--) {
+      const cleanLine = lines[i].replace(/[^A-Za-z\s]/g, "").trim();
+      if (cleanLine.split(/\s+/).length >= 2) {
+        const words = cleanLine.toUpperCase().split(/\s+/);
+        const isHeader = words.some(w => excludeKeywords.some(kw => w.includes(kw)));
+        if (!isHeader) {
+          name = cleanLine;
+          break;
+        }
+      }
+    }
+  }
+
+  // Fallback to top-down search if name wasn't found above DOB/Gender line
+  if (!name) {
+    for (const line of lines) {
+      const cleanLine = line.replace(/[^A-Za-z\s]/g, "").trim();
+      if (cleanLine.split(/\s+/).length >= 2) {
+        const words = cleanLine.toUpperCase().split(/\s+/);
+        const isHeader = words.some(w => excludeKeywords.some(kw => w.includes(kw)));
+        if (!isHeader) {
+          name = cleanLine;
+          break;
+        }
       }
     }
   }

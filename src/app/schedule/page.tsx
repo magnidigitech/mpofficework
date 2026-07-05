@@ -144,6 +144,9 @@ function SchedulePageContent() {
   // Handler to update share preferences and save to localStorage
   const updateShareOption = (key: keyof ShareOptions, val: boolean) => {
     const updated = { ...shareOptions, [key]: val };
+    if (key === "onlyConfirmed" && val === true) {
+      updated.includeStatus = false;
+    }
     setShareOptions(updated);
     localStorage.setItem("schedule_share_options", JSON.stringify(updated));
   };
@@ -258,7 +261,7 @@ function SchedulePageContent() {
         const staffList = s.assignments.map((a) => a.user.name).join(", ");
         msg += opts.noEmojis ? `Assigned Staff: ${staffList}\n` : `👤 Assigned Staff: ${staffList}\n`;
       }
-      if (opts.includeStatus) {
+      if (opts.includeStatus && !opts.onlyConfirmed) {
         msg += opts.noEmojis ? `Status: ${s.status}\n` : `📋 Status: ${s.status}\n`;
       }
       msg += `\n`;
@@ -274,6 +277,21 @@ function SchedulePageContent() {
       setShareMessage(compileDailySchedule(shareDate, shareOptions));
     }
   }, [shareDate, shareOptions, showShareModal, schedules]);
+
+  // Listen to Escape key to close Share Modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowShareModal(false);
+      }
+    };
+    if (showShareModal) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showShareModal]);
 
   // User role details
   const isAdmin = session?.user?.email === "admin@mpoffice.com";
@@ -1527,7 +1545,17 @@ function SchedulePageContent() {
                 />
               </div>
 
-              {/* Share Options Filters Checklist */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Message Preview</label>
+                <textarea
+                  value={shareMessage}
+                  onChange={(e) => setShareMessage(e.target.value)}
+                  rows={5}
+                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-700 text-[11px] leading-normal font-sans"
+                />
+              </div>
+
+              {/* Share Options Filters Checklist (Controls) */}
               <div className="border border-gray-200 rounded-xl p-3 bg-gray-50/50 space-y-2">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide block mb-1.5">Include in message:</span>
                 <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-gray-700 font-sans">
@@ -1576,15 +1604,17 @@ function SchedulePageContent() {
                     />
                     <span>Assigned Staff</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={shareOptions.includeStatus}
-                      onChange={(e) => updateShareOption("includeStatus", e.target.checked)}
-                      className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                    />
-                    <span>Status</span>
-                  </label>
+                  {!shareOptions.onlyConfirmed && (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={shareOptions.includeStatus}
+                        onChange={(e) => updateShareOption("includeStatus", e.target.checked)}
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span>Status</span>
+                    </label>
+                  )}
                   <label className="flex items-center gap-2 cursor-pointer col-span-2 mt-1 pt-1 border-t border-gray-200">
                     <input
                       type="checkbox"
@@ -1595,16 +1625,6 @@ function SchedulePageContent() {
                     <span>No Emojis (Clean formatting)</span>
                   </label>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">Message Preview</label>
-                <textarea
-                  value={shareMessage}
-                  onChange={(e) => setShareMessage(e.target.value)}
-                  rows={5}
-                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-700 text-[11px] leading-normal font-sans"
-                />
               </div>
             </div>
 
@@ -1680,89 +1700,106 @@ function SchedulePageContent() {
       </div>
 
       {/* Printable Tabular Daily Schedule PDF Layout */}
-      <div className="hidden print:block font-sans p-6 text-gray-900 bg-white w-full">
-        <div className="text-center mb-8 border-b-2 border-gray-800 pb-4">
-          <h1 className="text-xl font-black uppercase tracking-wider">MP Tour Schedule</h1>
-          <p className="text-xs text-gray-500 mt-1.5 font-semibold">
-            Date: {new Date(shareDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+      <div className="hidden print:block font-sans bg-white relative" style={{ width: "210mm", height: "297mm", backgroundImage: "url('/letterhead_bg.png')", backgroundSize: "100% 100%", backgroundRepeat: "no-repeat" }}>
+        
+        {/* Print styling overrides */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&display=swap');
+          @media print {
+            @page {
+              size: A4 portrait !important;
+              margin: 0 !important;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          }
+        `}} />
+
+        {/* Date inside the top-right white strip bubble */}
+        <div style={{ position: "absolute", top: "9mm", right: "2mm", width: "65mm", height: "11mm", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p style={{ fontSize: "18px", fontFamily: "'Poppins', sans-serif", fontWeight: 800, color: "#0F172A", letterSpacing: "0.5px", margin: 0, textAlign: "center" }}>
+            {new Date(shareDate).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}
           </p>
         </div>
 
-        <table className="w-full border-collapse border border-gray-400 text-[11px]">
-          <thead>
-            <tr className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider">
-              <th className="border border-gray-400 p-2 text-center w-12">S.No</th>
-              <th className="border border-gray-400 p-2 text-left w-32">Time</th>
-              <th className="border border-gray-400 p-2 text-left">Visit Details / Venue</th>
-              {shareOptions.includeStatus && <th className="border border-gray-400 p-2 text-left w-24">Status</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {schedules
-              .filter((s) => {
+        {/* Schedule Table Container */}
+        <div style={{ paddingTop: "52mm", paddingLeft: "15mm", paddingRight: "15mm" }}>
+          <table className="w-full border-collapse border border-gray-300 text-[11px] bg-white/95">
+            <thead>
+              <tr className="bg-gray-100 text-gray-800 font-bold uppercase tracking-wider">
+                <th className="border border-gray-300 p-2 text-center w-12">S.No</th>
+                <th className="border border-gray-300 p-2 text-left">Visit Details / Venue</th>
+                <th className="border border-gray-300 p-2 text-left w-32">Time</th>
+                {shareOptions.includeStatus && !shareOptions.onlyConfirmed && <th className="border border-gray-300 p-2 text-left w-24">Status</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {schedules
+                .filter((s) => {
+                  const sDate = new Date(s.startAt);
+                  const localDateStr = sDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+                  return localDateStr === shareDate;
+                })
+                .filter((s) => !shareOptions.onlyConfirmed || s.status !== "DRAFT")
+                .map((s, idx) => {
+                  const startTime = new Date(s.startAt).toLocaleTimeString("en-IN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "Asia/Kolkata",
+                  });
+                  const endTime = new Date(s.endAt).toLocaleTimeString("en-IN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "Asia/Kolkata",
+                  });
+
+                  return (
+                    <tr key={s.id} className="align-top border border-gray-300">
+                      <td className="border border-gray-300 p-2 text-center text-gray-700">{idx + 1}</td>
+                      <td className="border border-gray-300 p-2 space-y-1">
+                        <div className="font-bold text-gray-900 text-xs">{s.title}</div>
+                        <div className="text-[10px] text-gray-600 font-semibold">📍 Venue: {s.venue}</div>
+                        {shareOptions.includeGoogleMaps && s.googleMapsLink && (
+                          <div className="text-[9px] text-blue-600 underline">Maps Link: {s.googleMapsLink}</div>
+                        )}
+                        {shareOptions.includeDescription && s.description && (
+                          <p className="text-[10px] text-gray-500 leading-normal italic">{s.description}</p>
+                        )}
+                        {shareOptions.includeContacts && s.contacts && s.contacts.length > 0 && (
+                          <div className="text-[9px] text-gray-500">
+                            Contacts: {s.contacts.map((c) => `${c.name} (${c.phone})`).join(", ")}
+                          </div>
+                        )}
+                        {shareOptions.includeAssignments && s.assignments && s.assignments.length > 0 && (
+                          <div className="text-[9px] text-gray-400">Assigned Staff: {s.assignments.map(a => a.user.name).join(", ")}</div>
+                        )}
+                      </td>
+                      <td className="border border-gray-300 p-2 font-mono font-semibold text-gray-700">
+                        {startTime} - {endTime}
+                      </td>
+                      {shareOptions.includeStatus && !shareOptions.onlyConfirmed && (
+                        <td className="border border-gray-300 p-2 text-[10px] font-bold uppercase tracking-wider text-emerald-800">{s.status.replace("_", " ")}</td>
+                      )}
+                    </tr>
+                  );
+                })}
+              {schedules.filter((s) => {
                 const sDate = new Date(s.startAt);
                 const localDateStr = sDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
                 return localDateStr === shareDate;
-              })
-              .filter((s) => !shareOptions.onlyConfirmed || s.status !== "DRAFT")
-              .map((s, idx) => {
-                const startTime = new Date(s.startAt).toLocaleTimeString("en-IN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone: "Asia/Kolkata",
-                });
-                const endTime = new Date(s.endAt).toLocaleTimeString("en-IN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone: "Asia/Kolkata",
-                });
-
-                return (
-                  <tr key={s.id} className="align-top">
-                    <td className="border border-gray-400 p-2 text-center">{idx + 1}</td>
-                    <td className="border border-gray-400 p-2 font-mono font-semibold">
-                      {startTime} - {endTime}
-                    </td>
-                    <td className="border border-gray-400 p-2 space-y-1">
-                      <div className="font-bold text-gray-900 text-xs">{s.title}</div>
-                      <div className="text-[10px] text-gray-505 text-gray-500 font-semibold">📍 Venue: {s.venue}</div>
-                      {shareOptions.includeGoogleMaps && s.googleMapsLink && (
-                        <div className="text-[9px] text-blue-600 underline">Maps Link: {s.googleMapsLink}</div>
-                      )}
-                      {shareOptions.includeDescription && s.description && (
-                        <p className="text-[10px] text-gray-600 leading-normal italic">{s.description}</p>
-                      )}
-                      {shareOptions.includeContacts && s.contacts && s.contacts.length > 0 && (
-                        <div className="text-[9px] text-gray-500">
-                          Contacts: {s.contacts.map((c) => `${c.name} (${c.phone})`).join(", ")}
-                        </div>
-                      )}
-                      {shareOptions.includeAssignments && s.assignments && s.assignments.length > 0 && (
-                        <div className="text-[9px] text-gray-400">Assigned Staff: {s.assignments.map(a => a.user.name).join(", ")}</div>
-                      )}
-                    </td>
-                    {shareOptions.includeStatus && (
-                      <td className="border border-gray-400 p-2 text-[10px] font-bold uppercase tracking-wider">{s.status.replace("_", " ")}</td>
-                    )}
-                  </tr>
-                );
-              })}
-            {schedules.filter((s) => {
-              const sDate = new Date(s.startAt);
-              const localDateStr = sDate.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-              return localDateStr === shareDate;
-            }).filter((s) => !shareOptions.onlyConfirmed || s.status !== "DRAFT").length === 0 && (
-              <tr>
-                <td colSpan={shareOptions.includeStatus ? 4 : 3} className="border border-gray-400 p-8 text-center text-gray-400 italic">
-                  No visits scheduled for this date.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        
-        <div className="mt-12 text-[10px] text-gray-400 text-right">
-          Generated via MP Office Portal on {new Date().toLocaleDateString("en-IN")}
+              }).filter((s) => !shareOptions.onlyConfirmed || s.status !== "DRAFT").length === 0 && (
+                <tr>
+                  <td colSpan={shareOptions.includeStatus && !shareOptions.onlyConfirmed ? 4 : 3} className="border border-gray-300 p-8 text-center text-gray-400 italic">
+                    No visits scheduled for this date.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </PageLayout>

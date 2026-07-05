@@ -792,86 +792,152 @@ export default function TTDRequestDetailsPage() {
       </div>
 
       {/* Print-only template */}
-      <div className="hidden print:block font-serif text-black leading-relaxed p-8 max-w-2xl mx-auto bg-white">
-        {/* Letterhead */}
-        <div className="text-center border-b-2 border-gray-800 pb-4 mb-6">
-          <h1 className="text-xl font-bold uppercase tracking-wide">Office of B. Ramakrishna, M.P.</h1>
-          <p className="text-xs uppercase font-semibold text-gray-600">Member of Parliament (Lok Sabha)</p>
-          <p className="text-[10px] text-gray-500 mt-1">12, Parliament House, New Delhi / MP Office, Amaravati, Andhra Pradesh</p>
-        </div>
+      <div className="hidden print:block font-serif text-black leading-relaxed p-10 max-w-2xl mx-auto bg-white min-h-[1050px] flex flex-col justify-between">
+        <div>
+          {/* Letterhead */}
+          <div className="flex justify-between items-start border-b border-gray-300 pb-3 mb-6 font-sans">
+            {/* Left: Name and Title */}
+            <div className="w-1/3 text-left space-y-1">
+              <h1 className="text-sm font-black tracking-tight text-[#9C2A2A] uppercase leading-none">
+                Bhashyam Ramakrishna
+              </h1>
+              <p className="text-[9px] font-bold text-gray-800 leading-tight">
+                Member of Parliament (Rajya Sabha)
+              </p>
+            </div>
 
-        {/* Ref and Date */}
-        <div className="flex justify-between text-xs mb-8">
-          <div>
-            <strong>Ref No:</strong> {data.letterNumber || `TTD-REQ-${data.requestNumber}`}
+            {/* Center: Emblem Logo */}
+            <div className="w-1/3 flex justify-center shrink-0">
+              <svg className="w-9 h-11 text-amber-600" viewBox="0 0 100 120" fill="currentColor">
+                {/* Pedestal */}
+                <path d="M 20,95 L 80,95 L 75,102 L 25,102 Z" />
+                <rect x="35" y="102" width="30" height="5" rx="1.5" />
+                {/* Ashoka Chakra */}
+                <circle cx="50" cy="85" r="7" fill="none" stroke="currentColor" strokeWidth="1" />
+                <circle cx="50" cy="85" r="1" />
+                {/* Lion head outline silhouette */}
+                <path d="M 40,40 C 40,28 60,28 60,40 C 60,45 65,45 68,52 C 72,58 65,72 58,75 L 61,88 L 39,88 L 42,75 C 35,72 28,58 32,52 C 35,45 40,45 40,40 Z" />
+                <path d="M 47,40 Q 50,42 53,40 Q 50,30 47,40 Z" fill="none" stroke="currentColor" strokeWidth="0.5" />
+              </svg>
+            </div>
+
+            {/* Right: Office info */}
+            <div className="w-1/3 text-right text-[8px] font-semibold text-gray-600 leading-tight space-y-0.5">
+              <p>Office : 4/3, Navabharat Nagar,</p>
+              <p>Guntur - 522 006.</p>
+              <p>ramakrishna.bhashyammp@gmail.com</p>
+              <p>Cell : 99081 22239</p>
+            </div>
           </div>
-          <div>
-            <strong>Date:</strong> {data.letterDate ? new Date(data.letterDate).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN")}
+
+          {/* Date */}
+          <div className="text-right text-xs font-bold text-gray-900 mb-6 font-sans">
+            Date: {data.letterDate ? new Date(data.letterDate).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-") : new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}
+          </div>
+
+          {/* Recipient */}
+          <div className="text-xs space-y-0.5 mb-6 text-gray-950 font-sans">
+            <p className="font-semibold">To</p>
+            <p className="pl-4">The Joint Executive Officer,</p>
+            <p className="pl-4">Tirumala Tirupati Devasthanam's,</p>
+            <p className="pl-4">Tirumala.</p>
+          </div>
+
+          {/* Subject */}
+          <div className="text-xs font-black text-gray-900 mb-6 uppercase tracking-wide border-y border-gray-200 py-2 font-sans">
+            Subject: Request for VIP Break Darshan Tickets and Accommodation
+          </div>
+
+          {/* Salutation */}
+          <p className="text-xs font-bold text-gray-900 mb-4 font-sans">Dear Sir,</p>
+
+          {/* Body content */}
+          <div className="text-xs text-gray-800 leading-relaxed space-y-4 text-justify font-sans">
+            <p>
+              I wish to recommend the following devotee {data.members.length > 1 ? `along with ${data.members.length - 1} family members,` : ""} will be visiting Tirumala to offer prayers to Lord Sri Venkateswara Swamy. The devotee's details are as follows:
+            </p>
+
+            {/* Main Devotee Profile Details Box */}
+            {(() => {
+              const primaryMember = data.members.find(m => m.isPrimaryApplicant) || data.members[0];
+              return (
+                <div className="pl-6 space-y-1 font-bold text-gray-950">
+                  <p>Name: <span className="font-medium text-gray-800">{primaryMember?.fullName}</span></p>
+                  <p>Age: <span className="font-medium text-gray-800">{primaryMember?.age} Years</span></p>
+                  <p>Aadhaar No: <span className="font-medium text-gray-800">{primaryMember?.identityType === "AADHAAR" || primaryMember?.identityType === "Aadhaar" ? "" : `${primaryMember?.identityType}: `}{primaryMember?.identityLastFourDigits}</span></p>
+                  <p>Mobile No: <span className="font-medium text-gray-800">{primaryMember?.mobile || data.applicantMobile}</span></p>
+                </div>
+              );
+            })()}
+
+            <p>
+              I kindly request you to arrange <strong className="text-gray-950">{data.members.length} VIP Break Darshan tickets</strong> for <strong className="text-gray-950">{new Date(data.preferredDarshanDate).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}</strong> and provide accommodation from <strong className="text-gray-950">{(() => {
+                const d = new Date(data.preferredDarshanDate);
+                d.setDate(d.getDate() - 1);
+                return d.toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-");
+              })()}</strong> for the family.
+            </p>
+
+            {/* Table of pilgrims (Only if accompanying members exist) */}
+            {(() => {
+              const primaryMember = data.members.find(m => m.isPrimaryApplicant) || data.members[0];
+              const familyMembers = data.members.filter(m => m.id !== primaryMember?.id);
+              if (familyMembers.length === 0) return null;
+              return (
+                <div className="mt-4 space-y-1.5">
+                  <p className="font-bold text-gray-900">Accompanying Family Members:</p>
+                  <table className="w-full text-left text-[10px] border-collapse border border-gray-300">
+                    <thead>
+                      <tr className="bg-gray-50 text-gray-700 font-bold uppercase">
+                        <th className="border border-gray-300 p-1.5 text-center w-8">S.No</th>
+                        <th className="border border-gray-300 p-1.5">Full Name</th>
+                        <th className="border border-gray-300 p-1.5 text-center w-12">Age</th>
+                        <th className="border border-gray-300 p-1.5 text-center w-12">Gender</th>
+                        <th className="border border-gray-300 p-1.5">ID Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {familyMembers.map((member, idx) => (
+                        <tr key={member.id}>
+                          <td className="border border-gray-300 p-1.5 text-center">{idx + 1}</td>
+                          <td className="border border-gray-300 p-1.5 font-semibold text-gray-800">{member.fullName}</td>
+                          <td className="border border-gray-300 p-1.5 text-center">{member.age}</td>
+                          <td className="border border-gray-300 p-1.5 text-center uppercase">{member.gender.toLowerCase()}</td>
+                          <td className="border border-gray-300 p-1.5 font-mono text-gray-600">{member.identityType}: {member.identityLastFourDigits}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+
+            <p>
+              Your kind consideration and favourable action in this regard will be highly appreciated.
+            </p>
+            
+            <p>Thanking You.</p>
           </div>
         </div>
 
-        {/* Recipient */}
-        <div className="text-xs space-y-0.5 mb-8">
-          <p>To,</p>
-          <p className="font-bold">The Executive Officer,</p>
-          <p>Tirumala Tirupati Devasthanams,</p>
-          <p>Tirupati, Andhra Pradesh.</p>
-        </div>
-
-        {/* Subject */}
-        <div className="text-xs mb-6 font-bold flex gap-1">
-          <span>Sub:</span>
-          <span>Request for VIP Darshan / Accommodation recommendation - Reg.</span>
-        </div>
-
-        {/* Salutation */}
-        <p className="text-xs mb-4">Respected Sir,</p>
-
-        {/* Body */}
-        <p className="text-xs mb-4 text-justify">
-          I am pleased to recommend the following pilgrims, who are residents of my constituency, for facilitating VIP Darshan / Accommodation at Tirumala on their visit scheduled on <strong>{new Date(data.preferredDarshanDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</strong>.
-        </p>
-
-        {/* Table of Pilgrims */}
-        <table className="w-full text-left text-xs border-collapse border border-gray-400 mb-6">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="border border-gray-400 p-2 text-center w-10">S.No</th>
-              <th className="border border-gray-400 p-2">Pilgrim Full Name</th>
-              <th className="border border-gray-400 p-2 text-center w-14">Age</th>
-              <th className="border border-gray-400 p-2 text-center w-16">Gender</th>
-              <th className="border border-gray-400 p-2">ID Document (Last 4)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.members.map((member, idx) => (
-              <tr key={member.id}>
-                <td className="border border-gray-400 p-2 text-center">{idx + 1}</td>
-                <td className="border border-gray-400 p-2 font-semibold">{member.fullName}</td>
-                <td className="border border-gray-400 p-2 text-center">{member.age}</td>
-                <td className="border border-gray-400 p-2 text-center uppercase">{member.gender.toLowerCase()}</td>
-                <td className="border border-gray-400 p-2 font-mono">{member.identityType} ({member.identityLastFourDigits})</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* Closing */}
-        <p className="text-xs mb-12 text-justify">
-          I request you to kindly facilitate the tickets and accommodation as per the rules. Thank you in advance.
-        </p>
-
-        {/* Sign-off */}
-        <div className="flex justify-between items-end text-xs">
-          <div>
-            <p>Yours faithfully,</p>
-            <div className="h-16"></div>
-            <p className="font-bold">(B. RAMAKRISHNA)</p>
-            <p className="text-gray-500">Member of Parliament</p>
+        {/* Sign-off & Footer */}
+        <div>
+          <div className="flex justify-between items-end text-xs mt-12 font-sans">
+            <div className="text-left text-[10px] text-gray-500">
+              <p>Lr. No. {data.letterNumber || `1/${new Date().getFullYear()}/MP/Rajya Sabha`}</p>
+            </div>
+            <div className="text-right space-y-1 font-bold">
+              <p>Yours sincerely,</p>
+              <div className="h-14"></div>
+              <p className="text-gray-900">(Bhashyam Rama Krishna)</p>
+              <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Member of Parliament</p>
+            </div>
           </div>
-          <div className="text-[10px] text-gray-400 text-right">
-            <p>Prepared by: {session?.user?.name || "Staff"}</p>
-            <p>Verification ID: {data.requestNumber}</p>
+
+          {/* Bottom letter footer line */}
+          <div className="border-t border-gray-200 mt-10 pt-2 flex justify-between text-[8px] font-semibold text-gray-400 font-sans tracking-wide">
+            <p>Resi : #4-4-26/1, Navabharat Nagar, Guntur - 522 006.</p>
+            <p>Web : bhashyamramakrishna.in</p>
           </div>
         </div>
       </div>

@@ -107,6 +107,21 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
     }
   }, [isOpen]);
 
+  // Listen to Escape key to close the modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   // Load edit data
   useEffect(() => {
     if (isOpen && editId) {
@@ -302,6 +317,7 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
                 <label className="text-xs font-bold text-gray-700 mb-1">Event Title *</label>
                 <input
                   type="text"
+                  autoFocus
                   placeholder="e.g. Village Inspection Tour"
                   {...register("title")}
                   disabled={isPending}
