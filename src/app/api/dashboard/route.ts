@@ -14,6 +14,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Fetch user roles
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId: session.user.id },
+      include: { role: true },
+    });
+    const roles = userRoles.map((ur) => ur.role.name);
+    const isAdmin = roles.includes("Super Admin") || roles.includes("MP Office Admin");
+    const isCoordinator = roles.includes("Schedule Coordinator") || isAdmin;
+    const isScheduleViewer = roles.includes("Schedule Viewer") && !isAdmin && !isCoordinator;
+
     // Timezone bounds calculations (Asia/Kolkata offset: +5.5 hours)
     const now = new Date();
     const kolkataOffset = 5.5 * 60 * 60 * 1000;
@@ -42,6 +52,7 @@ export async function GET(request: Request) {
           gte: startOfToday,
           lt: endOfToday,
         },
+        ...(isScheduleViewer ? { status: "CONFIRMED" } : {}),
       },
     });
 
@@ -56,7 +67,7 @@ export async function GET(request: Request) {
         isCompleted: false,
         visitChecklist: {
           schedule: {
-            status: {
+            status: isScheduleViewer ? "CONFIRMED" : {
               notIn: ["COMPLETED", "CANCELLED"],
             },
           },
@@ -158,7 +169,7 @@ export async function GET(request: Request) {
         startAt: {
           gte: now,
         },
-        status: {
+        status: isScheduleViewer ? "CONFIRMED" : {
           notIn: ["COMPLETED", "CANCELLED"],
         },
       },
@@ -188,6 +199,7 @@ export async function GET(request: Request) {
           gte: startOfTomorrow,
           lt: endOfTomorrow,
         },
+        ...(isScheduleViewer ? { status: "CONFIRMED" } : {}),
       },
       include: {
         contacts: true,

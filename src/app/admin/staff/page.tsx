@@ -80,7 +80,8 @@ export default function StaffManagement() {
     "Social Media Team",
     "TTD Manager",
     "TTD Staff",
-    "Viewer"
+    "Viewer",
+    "Schedule Viewer"
   ];
 
   // Fetch Users

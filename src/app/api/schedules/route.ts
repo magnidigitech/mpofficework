@@ -77,6 +77,12 @@ export async function GET(request: Request) {
       };
     }
 
+    // Role restriction: Schedule Viewers can only see confirmed schedules
+    const isScheduleViewer = roles.includes("Schedule Viewer") && !isAdmin && !isCoordinator;
+    if (isScheduleViewer) {
+      whereFilter.status = "CONFIRMED";
+    }
+
     // Fetch schedules
     const schedules = await prisma.schedule.findMany({
       where: whereFilter,

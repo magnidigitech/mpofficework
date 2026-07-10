@@ -104,6 +104,15 @@ export async function GET(
       }
     }
 
+    if (roles.includes("Schedule Viewer") && !isAdmin && !isCoordinator) {
+      if (schedule.status !== "CONFIRMED") {
+        return NextResponse.json(
+          { error: "Forbidden: Schedule Viewer can only view confirmed schedules." },
+          { status: 403 }
+        );
+      }
+    }
+
     return NextResponse.json(schedule);
   } catch (err: any) {
     console.error("Error fetching schedule detail:", err);

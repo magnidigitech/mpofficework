@@ -143,6 +143,15 @@ async function main() {
         "ttd.view_all"
       ],
     },
+    {
+      name: "Schedule Viewer",
+      description: "Read-only access to confirmed schedules and their details",
+      permissions: [
+        "schedules.view_all",
+        "checklists.view",
+        "social_media.view"
+      ],
+    },
   ];
 
   for (const roleDef of rolesWithPermissions) {

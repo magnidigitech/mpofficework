@@ -34,6 +34,7 @@ interface ScheduleWithRelations extends OfflineSchedule {
   requiredDocuments?: string;
   contacts: OfflineContact[];
   assignments: { user: AssignedUser }[];
+  visitChecklist?: any;
   socialMediaUpdate?: { isRequired: boolean; status: string; posts?: any[] } | null;
 }
 
@@ -917,7 +918,9 @@ function SchedulePageContent() {
 
                         <div className="mt-3.5 pt-3 border-t border-gray-200 flex justify-between items-center text-[10px] text-gray-500 font-medium">
                           <span>Assigned Staff: {s.assignments && s.assignments.length > 0 ? s.assignments.map(a => a.user.name).join(", ") : "None"}</span>
-                          <Link href={`/schedule/${s.id}/checklist`} className="text-primary font-bold hover:underline">Manage Visit</Link>
+                          {s.visitChecklist && (
+                            <Link href={`/schedule/${s.id}/checklist`} className="text-primary font-bold hover:underline">Manage Visit</Link>
+                          )}
                         </div>
                       </div>
                       
@@ -1361,21 +1364,26 @@ function SchedulePageContent() {
                 {/* Right side actions */}
                 <div className="flex items-center gap-1.5">
                   {isReadOnlyViewer ? (
-                    (() => {
-                      const publishedPostsCount = schedule.socialMediaUpdate?.posts?.filter((p: any) => p.postUrl)?.length || 0;
-                      if (publishedPostsCount > 0) {
-                        return (
-                          <Link
-                            href={`/schedule/${schedule.id}/social-media`}
-                            className="flex items-center gap-1 px-2.5 h-7 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold rounded-lg text-[10px] transition"
-                          >
-                            <Share2 className="w-3 h-3" />
-                            <span>Social ({publishedPostsCount})</span>
-                          </Link>
-                        );
-                      }
-                      return null;
-                    })()
+                    <>
+                      {schedule.visitChecklist && (
+                        <Link
+                          href={`/schedule/${schedule.id}/checklist`}
+                          className="flex items-center gap-1 px-2.5 h-7 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-primary font-bold rounded-lg text-[10px] transition"
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Checklist</span>
+                        </Link>
+                      )}
+                      {schedule.socialMediaUpdate && (
+                        <Link
+                          href={`/schedule/${schedule.id}/social-media`}
+                          className="flex items-center gap-1 px-2.5 h-7 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold rounded-lg text-[10px] transition"
+                        >
+                          <Share2 className="w-3 h-3" />
+                          <span>Social</span>
+                        </Link>
+                      )}
+                    </>
                   ) : (
                     <>
                       {schedule.status !== "DRAFT" && (

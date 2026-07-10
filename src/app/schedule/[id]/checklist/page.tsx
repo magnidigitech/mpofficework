@@ -102,6 +102,13 @@ export default function ScheduleChecklistPage() {
 
   const isAdmin = session?.user?.email === "admin@mpoffice.com" || userRoles.includes("Super Admin") || userRoles.includes("MP Office Admin");
   const canManageAssignment = isAdmin || userRoles.includes("Schedule Coordinator");
+  const canEditChecklist = isAdmin || 
+    userRoles.includes("Schedule Coordinator") || 
+    userRoles.includes("Field Coordinator") || 
+    userRoles.includes("Field Staff") || 
+    userRoles.includes("Social Media Team") || 
+    userRoles.includes("TTD Manager") || 
+    userRoles.includes("TTD Staff");
 
   // Load Checklist & Offline sync state
   const loadChecklist = async () => {
@@ -706,8 +713,8 @@ export default function ScheduleChecklistPage() {
                           <div className="flex items-start gap-2.5 min-w-0">
                             <button
                               onClick={() => handleToggleItem(item.id, item.isCompleted)}
-                              disabled={isPending}
-                              className="mt-0.5 shrink-0 focus:outline-none"
+                              disabled={isPending || !canEditChecklist}
+                              className={`mt-0.5 shrink-0 focus:outline-none ${!canEditChecklist ? "cursor-default" : ""}`}
                               aria-label={item.isCompleted ? "Mark incomplete" : "Mark completed"}
                             >
                               {item.isCompleted ? (
@@ -781,20 +788,22 @@ export default function ScheduleChecklistPage() {
                                     <MessageSquare className="w-3 h-3 text-gray-400 shrink-0" />
                                     <span className="font-bold text-gray-500 shrink-0 hidden sm:inline">Remarks:</span>
                                     <span className="text-gray-700 font-medium truncate max-w-[100px] sm:max-w-[180px]">{item.remarks}</span>
-                                    <button
-                                      onClick={() => {
-                                        setEditingRemarksId(item.id);
-                                        setRemarksInput(item.remarks || "");
-                                      }}
-                                      className="text-primary hover:underline font-extrabold ml-1 cursor-pointer text-[9px] uppercase tracking-wider"
-                                    >
-                                      Edit
-                                    </button>
+                                    {canEditChecklist && (
+                                      <button
+                                        onClick={() => {
+                                          setEditingRemarksId(item.id);
+                                          setRemarksInput(item.remarks || "");
+                                        }}
+                                        className="text-primary hover:underline font-extrabold ml-1 cursor-pointer text-[9px] uppercase tracking-wider"
+                                      >
+                                        Edit
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              editingRemarksId !== item.id && (
+                              editingRemarksId !== item.id && canEditChecklist && (
                                 <button
                                   onClick={() => {
                                     setEditingRemarksId(item.id);

@@ -74,6 +74,7 @@ export async function GET(
     const isStaff = schedule.assignments.some(a => a.userId === session.user.id);
     const isViewer = roles.includes("Viewer");
     const isSMTeam = roles.includes("Social Media Team");
+    const isScheduleViewer = roles.includes("Schedule Viewer");
 
     // Fetch Social Media Update record
     const socialMedia = await prisma.socialMediaUpdate.findUnique({
@@ -104,11 +105,18 @@ export async function GET(
     }
 
     const isAssignedSM = socialMedia.assignedUserId === session.user.id;
-    const canView = isAdmin || isCoordinator || isAssignedSM || isStaff || isViewer || isSMTeam;
+    const canView = isAdmin || isCoordinator || isAssignedSM || isStaff || isViewer || isSMTeam || isScheduleViewer;
 
     if (!canView) {
       return NextResponse.json(
         { error: "Forbidden: You do not have permissions to view this social media tracker." },
+        { status: 403 }
+      );
+    }
+
+    if (isScheduleViewer && !isAdmin && !isCoordinator && schedule.status !== "CONFIRMED") {
+      return NextResponse.json(
+        { error: "Forbidden: Schedule Viewer can only access confirmed schedules." },
         { status: 403 }
       );
     }
