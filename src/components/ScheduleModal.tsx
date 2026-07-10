@@ -463,7 +463,7 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
               </div>
             </div>
 
-            {/* Staff list */}
+            {/* Staff list - Commented out for future use
             {staffMembers.length > 0 && (
               <div className="flex flex-col pt-2">
                 <label className="text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
@@ -494,6 +494,7 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
                 </div>
               </div>
             )}
+            */}
 
             {/* Contacts Array */}
             <div className="pt-4 border-t border-gray-150">
