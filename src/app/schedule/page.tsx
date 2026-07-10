@@ -833,16 +833,19 @@ function SchedulePageContent() {
           <div className="space-y-4">
             {/* Google Maps Route optimization banner */}
             {currentDaySchedules.length > 0 && (
-              <div className="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-3.5 rounded-xl">
-                <div>
-                  <h4 className="text-xs font-bold text-emerald-950">Geographic Convoy Route Planning</h4>
-                  <p className="text-[10px] text-emerald-700 mt-0.5">Optimize driver navigation for today's {currentDaySchedules.length} scheduled visits.</p>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3.5 bg-gradient-to-r from-emerald-50 to-teal-50/60 border border-emerald-100 p-4 rounded-2xl shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <MapIcon className="w-5 h-5 text-emerald-700 mt-0.5 shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-950">Geographic Convoy Route Planning</h4>
+                    <p className="text-xs text-emerald-700 mt-1 font-medium">Optimize driver navigation for today's {currentDaySchedules.length} scheduled visits.</p>
+                  </div>
                 </div>
                 <a
                   href={getGoogleMapsRouteUrl(currentDaySchedules)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                  className="shrink-0 whitespace-nowrap px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs hover:shadow-sm focus:outline-none"
                 >
                   <MapIcon className="w-3.5 h-3.5" />
                   <span>Open Route Maps</span>
