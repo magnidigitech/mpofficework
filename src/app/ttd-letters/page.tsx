@@ -215,14 +215,27 @@ function TTDLettersDashboardContent() {
         const res = await fetch("/api/profile");
         if (res.ok) {
           const profile = await res.json();
-          setUserRoles(profile.roles || []);
+          const roles = profile.roles || [];
+          setUserRoles(roles);
+          const isOnlyScheduleViewer = roles.includes("Schedule Viewer") &&
+            !roles.includes("Super Admin") &&
+            !roles.includes("MP Office Admin") &&
+            !roles.includes("Schedule Coordinator") &&
+            !roles.includes("Social Media Team") &&
+            !roles.includes("TTD Manager") &&
+            !roles.includes("TTD Staff") &&
+            !roles.includes("Field Staff") &&
+            !roles.includes("Field Coordinator");
+          if (isOnlyScheduleViewer) {
+            router.replace("/schedule");
+          }
         }
       } catch (err) {
         console.error("Failed to load user roles:", err);
       }
     }
     loadRoles();
-  }, []);
+  }, [router]);
 
   const isAdmin = 
     session?.user?.email === "admin@mpoffice.com" || 

@@ -28,31 +28,46 @@ export function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
-    async function checkAdmin() {
+    async function checkRoles() {
       try {
         const res = await fetch("/api/profile");
         if (res.ok) {
           const profile = await res.json();
           const roles = profile.roles || [];
+          setUserRoles(roles);
           if (roles.includes("Super Admin") || roles.includes("MP Office Admin")) {
             setIsAdmin(true);
           }
         }
       } catch (e) {}
     }
-    checkAdmin();
+    checkRoles();
   }, []);
 
-  const navItems = [...baseNavItems];
+  const isScheduleViewerOnly = userRoles.includes("Schedule Viewer") &&
+    !isAdmin &&
+    !userRoles.includes("Schedule Coordinator") &&
+    !userRoles.includes("Social Media Team") &&
+    !userRoles.includes("TTD Manager") &&
+    !userRoles.includes("TTD Staff") &&
+    !userRoles.includes("Field Staff") &&
+    !userRoles.includes("Field Coordinator");
+
+  let navItems = [...baseNavItems];
   if (isAdmin) {
     navItems.push({ name: "Staff Management", href: "/admin/staff", icon: Users });
     navItems.push({ name: "Checklist Templates", href: "/admin/templates", icon: FileText });
     navItems.push({ name: "Audit Center", href: "/admin/audit", icon: Shield });
     navItems.push({ name: "Settings", href: "/admin/settings", icon: Settings });
+  }
+
+  if (isScheduleViewerOnly) {
+    navItems = navItems.filter((item) => item.name === "Schedule");
   }
 
   const handleLogout = async () => {
@@ -71,22 +86,24 @@ export function Navigation() {
       {/* Mobile Bottom Navigation (Visible only on mobile/tablet) */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 md:hidden pb-safe">
         <div className="flex justify-around items-center h-16">
-          {mobileMainLinks.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex flex-col items-center justify-center flex-1 h-full text-xs transition ${
-                  isActive ? "text-primary font-semibold" : "text-gray-500 hover:text-gray-900"
-                }`}
-              >
-                <Icon className={`w-5 h-5 mb-0.5 ${isActive ? "text-primary" : "text-gray-400"}`} />
-                <span className="truncate max-w-[70px] text-[10px]">{item.name}</span>
-              </Link>
-            );
-          })}
+          {mobileMainLinks
+            .filter((item) => !isScheduleViewerOnly || item.name === "Schedule")
+            .map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex flex-col items-center justify-center flex-1 h-full text-xs transition ${
+                    isActive ? "text-primary font-semibold" : "text-gray-500 hover:text-gray-900"
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 mb-0.5 ${isActive ? "text-primary" : "text-gray-400"}`} />
+                  <span className="truncate max-w-[70px] text-[10px]">{item.name}</span>
+                </Link>
+              );
+            })}
           
           {/* Mobile Menu Button */}
           <button

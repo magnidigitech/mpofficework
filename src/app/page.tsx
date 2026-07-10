@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { authClient } from "@/lib/auth-client";
 import { subscribeToPushNotification } from "@/lib/push-helper";
@@ -37,9 +38,39 @@ interface ScheduleWithAssignments {
 
 export default function Dashboard() {
   const { data: session, isPending } = authClient.useSession();
+  const router = useRouter();
   const [pushSupported, setPushSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+
+  // Redirect Schedule Viewers to /schedule
+  useEffect(() => {
+    async function checkUserRoles() {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const profile = await res.json();
+          const roles = profile.roles || [];
+          const isAdmin = roles.includes("Super Admin") || roles.includes("MP Office Admin");
+          const isScheduleViewerOnly = roles.includes("Schedule Viewer") &&
+            !isAdmin &&
+            !roles.includes("Schedule Coordinator") &&
+            !roles.includes("Social Media Team") &&
+            !roles.includes("TTD Manager") &&
+            !roles.includes("TTD Staff") &&
+            !roles.includes("Field Staff") &&
+            !roles.includes("Field Coordinator");
+          if (isScheduleViewerOnly) {
+            router.replace("/schedule");
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    checkUserRoles();
+  }, [router]);
+
   const [dashboardData, setDashboardData] = useState<{
     metrics: {
       todayTotal: number;

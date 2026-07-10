@@ -1045,12 +1045,14 @@ function SchedulePageContent() {
             <h1 className="text-xl font-bold text-gray-900 leading-none">MP Tour Schedule</h1>
             <p className="text-[11px] text-gray-500 mt-1">Real-time schedule check-offs and contacts</p>
           </div>
-          <button
-            onClick={() => { setEditScheduleId(null); setShowAddModal(true); }}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-amber-700 text-white font-bold rounded-xl shadow-sm transition text-xs cursor-pointer focus:outline-none shrink-0"
-          >
-            <span>+ Add New</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => { setEditScheduleId(null); setShowAddModal(true); }}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-amber-700 text-white font-bold rounded-xl shadow-sm transition text-xs cursor-pointer focus:outline-none shrink-0"
+            >
+              <span>+ Add New</span>
+            </button>
+          )}
         </div>
 
         {/* View Selection & Compilation Tools */}

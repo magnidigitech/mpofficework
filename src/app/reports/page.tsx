@@ -62,8 +62,20 @@ function ReportsPageContent() {
         if (res.ok) {
           const profile = await res.json();
           const roles = profile.roles || [];
-          if (roles.includes("Super Admin") || roles.includes("MP Office Admin")) {
+          const isAdm = roles.includes("Super Admin") || roles.includes("MP Office Admin");
+          if (isAdm) {
             setIsAdmin(true);
+          }
+          const isScheduleViewerOnly = roles.includes("Schedule Viewer") &&
+            !isAdm &&
+            !roles.includes("Schedule Coordinator") &&
+            !roles.includes("Social Media Team") &&
+            !roles.includes("TTD Manager") &&
+            !roles.includes("TTD Staff") &&
+            !roles.includes("Field Staff") &&
+            !roles.includes("Field Coordinator");
+          if (isScheduleViewerOnly) {
+            router.replace("/schedule");
           }
         }
       } catch (e) {}
