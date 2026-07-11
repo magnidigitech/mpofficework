@@ -222,27 +222,40 @@ function SchedulePageContent() {
       return `No visits scheduled for ${dateStr}.`;
     }
 
-    const displayDate = new Date(dateStr).toLocaleDateString("en-IN", {
-      weekday: "long",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    const formatDisplayDate = (dStr: string) => {
+      try {
+        const parts = dStr.split("-");
+        const date = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        return `${weekdays[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+      } catch (e) {
+        return dStr;
+      }
+    };
 
-    let msg = `*MP TOUR SCHEDULE - ${displayDate}*\n`;
-    msg += `--------------------------------\n\n`;
+    const formatTime = (dateString: string) => {
+      try {
+        const d = new Date(dateString);
+        return d.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Kolkata",
+        }).toLowerCase();
+      } catch (e) {
+        return "";
+      }
+    };
+
+    const displayDate = formatDisplayDate(dateStr);
+
+    let msg = `*HONOURABLE MP SHRI BHASHYAM RAMA KRISHNA TOUR SCHEDULE - ${displayDate}*\n`;
+    msg += `---------------------------------------------\n\n`;
 
     filtered.forEach((s, idx) => {
-      const startTime = new Date(s.startAt).toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "Asia/Kolkata",
-      });
-      const endTime = new Date(s.endAt).toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "Asia/Kolkata",
-      });
+      const startTime = formatTime(s.startAt);
+      const endTime = formatTime(s.endAt);
 
       msg += `${idx + 1}. *${s.title}*\n`;
       msg += opts.noEmojis ? `Time: ${startTime} - ${endTime}\n` : `🕒 Time: ${startTime} - ${endTime}\n`;
@@ -268,8 +281,7 @@ function SchedulePageContent() {
       msg += `\n`;
     });
 
-    msg += `Generated from MP Office Portal.`;
-    return msg;
+    return msg.trim();
   };
 
   // Re-compile share preview dynamically when settings or date change
