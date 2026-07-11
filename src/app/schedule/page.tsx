@@ -257,26 +257,29 @@ function SchedulePageContent() {
       const startTime = formatTime(s.startAt);
       const endTime = formatTime(s.endAt);
 
-      msg += `${idx + 1}. *${s.title}*\n`;
-      msg += opts.noEmojis ? `Time: ${startTime} - ${endTime}\n` : `🕒 Time: ${startTime} - ${endTime}\n`;
-      msg += opts.noEmojis ? `Venue: ${s.venue}\n` : `📍 Venue: ${s.venue}\n`;
+      const prefix = `${idx + 1}. `;
+      const indent = " ".repeat(prefix.length);
+
+      msg += `${prefix}*${s.title}*\n`;
+      msg += indent + (opts.noEmojis ? `Time: ${startTime} - ${endTime}\n` : `🕒 Time: ${startTime} - ${endTime}\n`);
+      msg += indent + (opts.noEmojis ? `Venue: ${s.venue}\n` : `📍 Venue: ${s.venue}\n`);
       
       if (opts.includeGoogleMaps && s.googleMapsLink) {
-        msg += opts.noEmojis ? `Maps Link: ${s.googleMapsLink}\n` : `🗺️ Maps Link: ${s.googleMapsLink}\n`;
+        msg += indent + (opts.noEmojis ? `Maps Link: ${s.googleMapsLink}\n` : `🗺️ Maps Link: ${s.googleMapsLink}\n`);
       }
       if (opts.includeDescription && s.description) {
-        msg += opts.noEmojis ? `Description: ${s.description}\n` : `📝 Description: ${s.description}\n`;
+        msg += indent + (opts.noEmojis ? `Description: ${s.description}\n` : `📝 Description: ${s.description}\n`);
       }
       if (opts.includeContacts && s.contacts && s.contacts.length > 0) {
         const contactList = s.contacts.map((c) => `${c.name} (${c.phone})`).join(", ");
-        msg += opts.noEmojis ? `Contacts: ${contactList}\n` : `👥 Contacts: ${contactList}\n`;
+        msg += indent + (opts.noEmojis ? `Contacts: ${contactList}\n` : `👥 Contacts: ${contactList}\n`);
       }
       if (opts.includeAssignments && s.assignments && s.assignments.length > 0) {
         const staffList = s.assignments.map((a) => a.user.name).join(", ");
-        msg += opts.noEmojis ? `Assigned Staff: ${staffList}\n` : `👤 Assigned Staff: ${staffList}\n`;
+        msg += indent + (opts.noEmojis ? `Assigned Staff: ${staffList}\n` : `👤 Assigned Staff: ${staffList}\n`);
       }
       if (opts.includeStatus && !opts.onlyConfirmed) {
-        msg += opts.noEmojis ? `Status: ${s.status}\n` : `📋 Status: ${s.status}\n`;
+        msg += indent + (opts.noEmojis ? `Status: ${s.status}\n` : `📋 Status: ${s.status}\n`);
       }
       msg += `\n`;
     });
