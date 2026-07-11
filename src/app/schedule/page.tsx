@@ -403,7 +403,9 @@ function SchedulePageContent() {
 
       if (isDeviceOnline) {
         // Fetch fresh schedules from DB for specified tab view
-        const response = await fetch(`/api/schedules?view=${tab}`);
+        const response = await fetch(`/api/schedules?view=${tab}&t=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (response.ok) {
           const freshSchedules: ScheduleWithRelations[] = await response.json();
           setSchedules(freshSchedules);

@@ -115,7 +115,9 @@ export default function Dashboard() {
       setLoadingData(true);
       try {
         if (navigator.onLine) {
-          const res = await fetch("/api/dashboard");
+          const res = await fetch(`/api/dashboard?t=${Date.now()}`, {
+            cache: "no-store",
+          });
           if (res.ok) {
             const data = await res.json();
             setDashboardData(data);
