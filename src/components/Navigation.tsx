@@ -27,6 +27,8 @@ const mobileMainLinks = [
 export function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = authClient.useSession();
+  const isLoggedIn = !!session;
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -34,6 +36,11 @@ export function Navigation() {
 
   useEffect(() => {
     async function checkRoles() {
+      if (!isLoggedIn) {
+        setIsAdmin(false);
+        setUserRoles([]);
+        return;
+      }
       try {
         const res = await fetch("/api/profile");
         if (res.ok) {
@@ -47,7 +54,7 @@ export function Navigation() {
       } catch (e) {}
     }
     checkRoles();
-  }, []);
+  }, [isLoggedIn]);
 
   const isScheduleViewerOnly = userRoles.includes("Schedule Viewer") &&
     !isAdmin &&
@@ -66,7 +73,9 @@ export function Navigation() {
     navItems.push({ name: "Settings", href: "/admin/settings", icon: Settings });
   }
 
-  if (isScheduleViewerOnly) {
+  if (!isLoggedIn) {
+    navItems = baseNavItems.filter((item) => item.name === "Schedule");
+  } else if (isScheduleViewerOnly) {
     navItems = navItems.filter((item) => item.name === "Schedule");
   }
 
@@ -87,7 +96,15 @@ export function Navigation() {
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 md:hidden pb-safe">
         <div className="flex justify-around items-center h-16">
           {mobileMainLinks
-            .filter((item) => !isScheduleViewerOnly || item.name === "Schedule")
+            .filter((item) => {
+              if (!isLoggedIn) {
+                return item.name === "Schedule";
+              }
+              if (isScheduleViewerOnly) {
+                return item.name === "Schedule";
+              }
+              return true;
+            })
             .map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
@@ -105,16 +122,26 @@ export function Navigation() {
               );
             })}
           
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className={`flex flex-col items-center justify-center flex-1 h-full text-xs transition focus:outline-none cursor-pointer ${
-              isMenuLinkActive ? "text-primary font-semibold" : "text-gray-500 hover:text-gray-900"
-            }`}
-          >
-            <Menu className={`w-5 h-5 mb-0.5 ${isMenuLinkActive ? "text-primary" : "text-gray-400"}`} />
-            <span className="text-[10px]">Menu</span>
-          </button>
+          {/* Mobile Menu Button / Login Button */}
+          {!isLoggedIn ? (
+            <Link
+              href="/login"
+              className="flex flex-col items-center justify-center flex-1 h-full text-xs text-gray-500 hover:text-gray-900 transition"
+            >
+              <User className="w-5 h-5 mb-0.5 text-gray-400" />
+              <span className="text-[10px]">Login</span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className={`flex flex-col items-center justify-center flex-1 h-full text-xs transition focus:outline-none cursor-pointer ${
+                isMenuLinkActive ? "text-primary font-semibold" : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              <Menu className={`w-5 h-5 mb-0.5 ${isMenuLinkActive ? "text-primary" : "text-gray-400"}`} />
+              <span className="text-[10px]">Menu</span>
+            </button>
+          )}
         </div>
       </nav>
 
@@ -285,15 +312,25 @@ export function Navigation() {
           })}
         </nav>
 
-        {/* Logout Button */}
+        {/* Logout/Login Button */}
         <div className="p-4 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="flex items-center gap-3.5 w-full px-4 py-3 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 hover:text-red-700 transition cursor-pointer"
-          >
-            <LogOut className="w-5 h-5 text-red-500" />
-            <span>Sign Out</span>
-          </button>
+          {isLoggedIn ? (
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="flex items-center gap-3.5 w-full px-4 py-3 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 hover:text-red-700 transition cursor-pointer"
+            >
+              <LogOut className="w-5 h-5 text-red-500" />
+              <span>Sign Out</span>
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center gap-3.5 w-full px-4 py-3 text-sm font-medium text-primary rounded-lg hover:bg-amber-50 hover:text-primary-dark transition cursor-pointer"
+            >
+              <User className="w-5 h-5 text-primary" />
+              <span>Login</span>
+            </Link>
+          )}
         </div>
       </aside>
     </>

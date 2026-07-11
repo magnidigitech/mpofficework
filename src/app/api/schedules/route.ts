@@ -8,23 +8,26 @@ export async function GET(request: Request) {
       headers: request.headers,
     });
 
-    if (!session || !session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Determine roles and permissions if logged in
+    let roles: string[] = [];
+    let isAdmin = false;
+    let isCoordinator = false;
+    let userId: string | null = null;
+
+    if (session && session.user) {
+      userId = session.user.id;
+      const userRoles = await prisma.userRole.findMany({
+        where: { userId: session.user.id },
+        include: { role: true },
+      });
+      roles = userRoles.map((ur) => ur.role.name);
+      isAdmin = roles.includes("Super Admin") || roles.includes("MP Office Admin");
+      isCoordinator = roles.includes("Schedule Coordinator") || isAdmin;
     }
 
     // Get search parameters
     const url = new URL(request.url);
     const view = url.searchParams.get("view") || "all";
-
-    // 1. Fetch user roles from DB
-    const userRoles = await prisma.userRole.findMany({
-      where: { userId: session.user.id },
-      include: { role: true },
-    });
-    const roles = userRoles.map((ur) => ur.role.name);
-
-    const isAdmin = roles.includes("Super Admin") || roles.includes("MP Office Admin");
-    const isCoordinator = roles.includes("Schedule Coordinator") || isAdmin;
 
     // Timezone bounds calculations (Asia/Kolkata offset: +5.5 hours)
     const now = new Date();
@@ -68,17 +71,17 @@ export async function GET(request: Request) {
     }
 
     // Role restriction: Field Coordinators/Staff only see their assigned schedules
-    const isFieldCoordinatorOnly = (roles.includes("Field Coordinator") || roles.includes("Field Staff")) && !isCoordinator;
+    const isFieldCoordinatorOnly = userId && (roles.includes("Field Coordinator") || roles.includes("Field Staff")) && !isCoordinator;
     if (isFieldCoordinatorOnly) {
       whereFilter.assignments = {
         some: {
-          userId: session.user.id,
+          userId: userId,
         },
       };
     }
 
-    // Role restriction: Schedule Viewers can only see confirmed schedules
-    const isScheduleViewer = roles.includes("Schedule Viewer") && !isAdmin && !isCoordinator;
+    // Role restriction: Schedule Viewers (and unauthenticated users) can only see confirmed schedules
+    const isScheduleViewer = !session || (roles.includes("Schedule Viewer") && !isAdmin && !isCoordinator);
     if (isScheduleViewer) {
       whereFilter.status = "CONFIRMED";
     }

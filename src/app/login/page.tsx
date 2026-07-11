@@ -78,6 +78,29 @@ export default function LoginPage() {
           setError(response.error.message || "Failed to sign in. Please try again.");
         }
       } else {
+        try {
+          const res = await fetch("/api/profile");
+          if (res.ok) {
+            const profile = await res.json();
+            const roles = profile.roles || [];
+            const isAdmin = roles.includes("Super Admin") || roles.includes("MP Office Admin");
+            const isScheduleViewerOnly = roles.includes("Schedule Viewer") &&
+              !isAdmin &&
+              !roles.includes("Schedule Coordinator") &&
+              !roles.includes("Social Media Team") &&
+              !roles.includes("TTD Manager") &&
+              !roles.includes("TTD Staff") &&
+              !roles.includes("Field Staff") &&
+              !roles.includes("Field Coordinator");
+
+            if (isScheduleViewerOnly) {
+              window.location.href = "/schedule";
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Failed to determine user role on login:", e);
+        }
         // Hard redirect so the browser re-sends all fresh session cookies
         window.location.href = "/";
       }

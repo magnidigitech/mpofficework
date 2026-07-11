@@ -1,11 +1,16 @@
 import { Navigation } from "./Navigation";
 import { NotificationInbox } from "./NotificationInbox";
+import { authClient } from "@/lib/auth-client";
+import Link from "next/link";
 
 interface PageLayoutProps {
   children: React.ReactNode;
 }
 
 export function PageLayout({ children }: PageLayoutProps) {
+  const { data: session } = authClient.useSession();
+  const isLoggedIn = !!session;
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
       {/* Sidebar & Bottom Nav */}
@@ -19,7 +24,16 @@ export function PageLayout({ children }: PageLayoutProps) {
             MP Office Portal
           </div>
           <div className="flex items-center gap-4 ml-auto">
-            <NotificationInbox />
+            {isLoggedIn ? (
+              <NotificationInbox />
+            ) : (
+              <Link
+                href="/login"
+                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-sm transition"
+              >
+                Login
+              </Link>
+            )}
           </div>
         </header>
 
