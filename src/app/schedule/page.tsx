@@ -1071,8 +1071,9 @@ function SchedulePageContent() {
         {/* Title & Primary Add Button */}
         <div className="flex justify-between items-center gap-3">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 leading-none">MP Tour Schedule</h1>
-            <p className="text-[11px] text-gray-500 mt-1">Real-time schedule check-offs and contacts</p>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">
+              HONOURABLE MP SHRI BHASHYAM RAMA KRISHNA TOUR SCHEDULE
+            </h1>
           </div>
           {canEdit && (
             <button

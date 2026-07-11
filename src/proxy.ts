@@ -10,6 +10,7 @@ export async function proxy(request: NextRequest) {
     pathname === "/schedule" ||
     pathname === "/api/schedules" ||
     pathname === "/api/settings/public" ||
+    pathname === "/telugudesamlogo.png" ||
     pathname === "/login" ||
     pathname === "/offline" ||
     pathname.startsWith("/api/auth") ||
