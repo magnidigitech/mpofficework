@@ -315,6 +315,7 @@ function SchedulePageContent() {
   // Load user roles
   useEffect(() => {
     async function loadRoles() {
+      if (!session) return;
       try {
         const res = await fetch("/api/profile");
         if (res.ok) {
@@ -326,7 +327,7 @@ function SchedulePageContent() {
       }
     }
     loadRoles();
-  }, []);
+  }, [session]);
 
   const canEdit = isAdmin || userRoles.includes("Super Admin") || userRoles.includes("MP Office Admin") || userRoles.includes("Schedule Coordinator");
   const canDelete = isAdmin || userRoles.includes("Super Admin") || userRoles.includes("MP Office Admin");
