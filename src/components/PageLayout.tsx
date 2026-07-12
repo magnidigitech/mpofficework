@@ -63,14 +63,13 @@ export function PageLayout({ children }: PageLayoutProps) {
               href="https://www.magnidigitech.com/" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 hover:opacity-85 transition"
+              className="inline-flex items-center bg-slate-950 px-2.5 py-1 rounded-lg hover:opacity-90 transition shadow-sm"
             >
               <img 
                 src="/magnilogo.webp" 
-                alt="Magni Digitech Logo" 
+                alt="Magni Digitech" 
                 className="h-4 w-auto object-contain"
               />
-              <span className="font-semibold text-gray-500 hover:text-emerald-700 transition">Magni Digitech</span>
             </a>
           </div>
         </footer>
