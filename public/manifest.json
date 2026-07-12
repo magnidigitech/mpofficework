@@ -1,7 +1,7 @@
 {
-  "name": "MP Office Management",
-  "short_name": "MP Office",
-  "description": "MP Schedule, checklist, social media tracking, and TTD letter management PWA",
+  "name": "HONOURABLE MP SHRI BHASHYAM RAMA KRISHNA TOUR SCHEDULE",
+  "short_name": "Schedule",
+  "description": "Official tour schedule and program updates of Honourable MP Shri Bhashyam Rama Krishna.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f9fafb",
