@@ -55,17 +55,21 @@ function SchedulePageContent() {
     tabFromUrl && VALID_TABS.includes(tabFromUrl) ? tabFromUrl : "today"
   );
 
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Sync activeTab when URL ?tab param changes (e.g. back/forward navigation)
   useEffect(() => {
     const t = searchParams.get("tab")?.toLowerCase() as Tab | null;
     if (t && VALID_TABS.includes(t) && t !== activeTab) {
       setActiveTab(t);
+      setCurrentPage(1);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
+    setCurrentPage(1);
     router.replace(`/schedule?tab=${tab}`, { scroll: false });
   };
 
@@ -1036,6 +1040,26 @@ function SchedulePageContent() {
     setSheetOffset(0);
   };
 
+  // Process schedules: sort "all" tab by startAt desc (latest on top), others chronologically (asc)
+  const processedSchedules = [...schedules].sort((a, b) => {
+    const timeA = new Date(a.startAt).getTime();
+    const timeB = new Date(b.startAt).getTime();
+    if (activeTab === "all") {
+      return timeB - timeA; // Latest on top
+    }
+    return timeA - timeB; // Chronological order
+  });
+
+  // Paginate if on "all" tab (10 items per page)
+  const itemsPerPage = 10;
+  const isAllTab = activeTab === "all";
+  const totalItems = processedSchedules.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  
+  const paginatedSchedules = isAllTab 
+    ? processedSchedules.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : processedSchedules;
+
   return (
     <PageLayout>
       <div 
@@ -1172,7 +1196,7 @@ function SchedulePageContent() {
         </div>
       ) : (
         <div className="space-y-4">
-          {schedules.map((schedule) => (
+          {paginatedSchedules.map((schedule) => (
             <div key={schedule.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs">
               {/* Header: Title and Badges */}
               <div className="flex justify-between items-start gap-3 flex-wrap">
@@ -1467,6 +1491,29 @@ function SchedulePageContent() {
               </div>
             </div>
           ))}
+
+          {/* Pagination Controls */}
+          {activeTab === "all" && totalPages > 1 && (
+            <div className="flex justify-between items-center gap-4 mt-6 pt-4 border-t border-gray-200 font-sans">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white text-xs font-semibold text-gray-700 rounded-xl shadow-xs transition cursor-pointer disabled:cursor-not-allowed focus:outline-none"
+              >
+                &larr; Previous
+              </button>
+              <span className="text-xs text-gray-500 font-medium">
+                Page {currentPage} of {totalPages} ({totalItems} items)
+              </span>
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white text-xs font-semibold text-gray-700 rounded-xl shadow-xs transition cursor-pointer disabled:cursor-not-allowed focus:outline-none"
+              >
+                Next &rarr;
+              </button>
+            </div>
+          )}
         </div>
       )}
 
