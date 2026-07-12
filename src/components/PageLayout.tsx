@@ -57,9 +57,22 @@ export function PageLayout({ children }: PageLayoutProps) {
 
         {/* Footer */}
         <footer className="py-4 border-t border-gray-200 bg-white text-center shrink-0">
-          <p className="text-[10px] text-gray-400 font-sans tracking-wide">
-            Powered by <span className="font-semibold text-gray-500">Magni Digitech</span>
-          </p>
+          <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-400 font-sans tracking-wide">
+            <span>Powered by</span>
+            <a 
+              href="https://www.magnidigitech.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 hover:opacity-85 transition"
+            >
+              <img 
+                src="/magnilogo.webp" 
+                alt="Magni Digitech Logo" 
+                className="h-4 w-auto object-contain"
+              />
+              <span className="font-semibold text-gray-500 hover:text-emerald-700 transition">Magni Digitech</span>
+            </a>
+          </div>
         </footer>
       </div>
     </div>

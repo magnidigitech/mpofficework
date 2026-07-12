@@ -11,6 +11,7 @@ export async function proxy(request: NextRequest) {
     pathname === "/api/schedules" ||
     pathname === "/api/settings/public" ||
     pathname === "/telugudesamlogo.png" ||
+    pathname === "/magnilogo.webp" ||
     pathname === "/login" ||
     pathname === "/offline" ||
     pathname.startsWith("/api/auth") ||
