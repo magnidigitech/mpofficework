@@ -54,6 +54,13 @@ export function PageLayout({ children }: PageLayoutProps) {
             {children}
           </div>
         </main>
+
+        {/* Footer */}
+        <footer className="py-4 border-t border-gray-200 bg-white text-center shrink-0">
+          <p className="text-[10px] text-gray-400 font-sans tracking-wide">
+            Powered by <span className="font-semibold text-gray-500">Magni Digitech</span>
+          </p>
+        </footer>
       </div>
     </div>
   );
