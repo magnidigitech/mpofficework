@@ -37,32 +37,7 @@ export default function LoginPage() {
     setIsStandalone(isAppStandalone);
   }, []);
 
-  // Auto-login in development mode to bypass manual login
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "production") {
-      const autoLogin = async () => {
-        setLoading(true);
-        try {
-          const response = await authClient.signIn.email({
-            email: "admin@bhashyamramakrishna.in",
-            password: "BhashyaM@4689",
-          });
-          if (!response.error) {
-            window.location.href = "/schedule";
-          } else {
-            console.error("Auto login error:", response.error);
-            setError("Auto-login failed: " + (response.error.message || "Unknown error"));
-          }
-        } catch (err: any) {
-          console.error("Auto login exception:", err);
-          setError("Auto-login failed: " + (err.message || "Unknown error"));
-        } finally {
-          setLoading(false);
-        }
-      };
-      autoLogin();
-    }
-  }, []);
+
 
   // Cooldown countdown timer after rate limit
   useEffect(() => {
