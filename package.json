@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
-    "@next/swc-darwin-arm64": "^16.2.11",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "better-auth": "^1.6.22",
