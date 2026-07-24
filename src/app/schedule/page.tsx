@@ -516,7 +516,8 @@ function SchedulePageContent() {
   };
 
   // Load schedules & sync state
-  const loadData = async (tab: typeof activeTab = activeTab) => {
+  const loadData = async (tab?: typeof activeTab) => {
+    const fetchTab = viewMode === "calendar" ? "all" : (tab || activeTab);
     setLoading(true);
     try {
       const isDeviceOnline = navigator.onLine;
@@ -524,7 +525,7 @@ function SchedulePageContent() {
 
       if (isDeviceOnline) {
         // Fetch fresh schedules from DB for specified tab view
-        const response = await fetch(`/api/schedules?view=${tab}&t=${Date.now()}`, {
+        const response = await fetch(`/api/schedules?view=${fetchTab}&t=${Date.now()}`, {
           cache: "no-store",
         });
         if (response.ok) {
@@ -532,7 +533,7 @@ function SchedulePageContent() {
           setSchedules(freshSchedules);
 
           // Update Dexie cachedSchedules cache (Only for "all" or "today" cache to avoid cache pollution)
-          if (tab === "today" || tab === "all") {
+          if (fetchTab === "today" || fetchTab === "all") {
             await db.transaction("rw", [db.cachedSchedules, db.contacts], async () => {
               await db.cachedSchedules.clear();
               await db.contacts.clear();
@@ -607,7 +608,7 @@ function SchedulePageContent() {
       if (response.ok) {
         showToast("Schedule deleted successfully!");
         setDeleteConfirmId(null);
-        loadData(activeTab);
+        loadData();
       } else {
         const data = await response.json();
         showToast(data.error || "Failed to delete schedule", "error");
@@ -620,12 +621,11 @@ function SchedulePageContent() {
 
   // Sync listener and connectivity polling
   useEffect(() => {
-    const fetchTab = viewMode === "calendar" ? "all" : activeTab;
-    loadData(fetchTab);
+    loadData();
 
     const handleOnline = () => {
       setIsOnline(true);
-      loadData(fetchTab);
+      loadData();
     };
 
     const handleOffline = () => {
@@ -670,8 +670,38 @@ function SchedulePageContent() {
       case "IN_PROGRESS":
         return "bg-sky-50 text-sky-800 border-sky-200";
       case "TRAVELLING":
-      case "ARRIVED":
         return "bg-blue-50 text-blue-800 border-blue-200";
+      case "ARRIVED":
+        return "bg-teal-50 text-teal-800 border-teal-200";
+      case "CONFIRMED":
+        return "bg-amber-50 text-amber-800 border-amber-200";
+      case "DRAFT":
+        return "bg-gray-100 text-gray-600 border-gray-200";
+      case "POSTPONED":
+        return "bg-purple-50 text-purple-800 border-purple-200";
+      default:
+        return "bg-gray-50 text-gray-800 border-gray-200";
+    }
+  };
+
+  const getStatusBorderColor = (status: string) => {
+    switch (status) {
+      case "COMPLETED":
+        return "border-l-emerald-500";
+      case "CANCELLED":
+        return "border-l-red-500";
+      case "IN_PROGRESS":
+        return "border-l-sky-500";
+      case "TRAVELLING":
+        return "border-l-blue-500";
+      case "ARRIVED":
+        return "border-l-teal-500";
+      case "CONFIRMED":
+        return "border-l-amber-500";
+      case "POSTPONED":
+        return "border-l-purple-500";
+      default:
+        return "border-l-gray-300";
     }
   };
 
@@ -729,9 +759,74 @@ function SchedulePageContent() {
     const getSchedulesForDate = (date: Date) => {
       const targetStr = getLocalDateStr(date);
       return schedules.filter(s => {
-        const sDate = new Date(s.startAt);
-        return getLocalDateStr(sDate) === targetStr;
+        const sStart = new Date(s.startAt);
+        const sEnd = s.endAt ? new Date(s.endAt) : sStart;
+        const startStr = getLocalDateStr(sStart);
+        const endStr = getLocalDateStr(sEnd);
+        return targetStr >= startStr && targetStr <= endStr;
       });
+    };
+
+    // Helper to align multi-day schedules in the same horizontal slot/row within a week
+    const getWeekAlignedSchedules = (weekDays: Date[]) => {
+      const startOfWeek = new Date(weekDays[0]);
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(weekDays[6]);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      // Filter schedules overlapping this week
+      const weekSchedules = schedules.filter(s => {
+        const sStart = new Date(s.startAt);
+        const sEnd = s.endAt ? new Date(s.endAt) : sStart;
+        return sStart <= endOfWeek && sEnd >= startOfWeek;
+      });
+
+      // Sort: multi-day first, then by duration desc, then startAt asc
+      weekSchedules.sort((a, b) => {
+        const aStart = new Date(a.startAt);
+        const aEnd = a.endAt ? new Date(a.endAt) : aStart;
+        const bStart = new Date(b.startAt);
+        const bEnd = b.endAt ? new Date(b.endAt) : bStart;
+
+        const aIsMulti = getLocalDateStr(aStart) !== getLocalDateStr(aEnd);
+        const bIsMulti = getLocalDateStr(bStart) !== getLocalDateStr(bEnd);
+
+        if (aIsMulti && !bIsMulti) return -1;
+        if (!aIsMulti && bIsMulti) return 1;
+
+        const aLen = aEnd.getTime() - aStart.getTime();
+        const bLen = bEnd.getTime() - bStart.getTime();
+        if (bLen !== aLen) return bLen - aLen;
+
+        return aStart.getTime() - bStart.getTime();
+      });
+
+      const rowAssignments = new Map<string, number>();
+      const rowBusyUntil = new Map<number, Date>();
+
+      weekSchedules.forEach(s => {
+        const sStart = new Date(s.startAt);
+        const sEnd = s.endAt ? new Date(s.endAt) : sStart;
+
+        const startDay = new Date(sStart);
+        startDay.setHours(0, 0, 0, 0);
+
+        let assignedRow = 0;
+        while (true) {
+          const busyUntil = rowBusyUntil.get(assignedRow);
+          if (!busyUntil || busyUntil < startDay) {
+            rowAssignments.set(s.id, assignedRow);
+            
+            const endDay = new Date(sEnd);
+            endDay.setHours(23, 59, 59, 999);
+            rowBusyUntil.set(assignedRow, endDay);
+            break;
+          }
+          assignedRow++;
+        }
+      });
+
+      return rowAssignments;
     };
 
     const handlePrev = () => {
@@ -792,6 +887,11 @@ function SchedulePageContent() {
       return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ""}`;
     };
 
+    const weeks: { date: Date; isCurrentMonth: boolean }[][] = [];
+    for (let i = 0; i < monthGrid.length; i += 7) {
+      weeks.push(monthGrid.slice(i, i + 7));
+    }
+
     const currentDaySchedules = getSchedulesForDate(calendarDate);
 
     return (
@@ -828,64 +928,156 @@ function SchedulePageContent() {
 
         {/* Month View Layout */}
         {calendarView === "month" && (
-          <div className="grid grid-cols-7 gap-1.5">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <div key={day} className="text-center font-bold text-gray-400 text-[10px] uppercase py-1">
-                {day}
-              </div>
-            ))}
-            {monthGrid.map(({ date, isCurrentMonth }, idx) => {
-              const daySchedules = getSchedulesForDate(date);
-              const isToday = getLocalDateStr(date) === getLocalDateStr(new Date());
+          <div className="flex flex-col gap-1.5 font-sans">
+            {/* Header: Weekdays (Sun - Sat) */}
+            <div className="grid grid-cols-7 gap-1.5">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <div key={day} className="text-center font-bold text-gray-400 text-[10px] uppercase py-1">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Weeks */}
+            {weeks.map((week, weekIdx) => {
+              const weekDays = week.map((w) => w.date);
+              const rowAssignments = getWeekAlignedSchedules(weekDays);
+
               return (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    setCalendarDate(date);
-                    setCalendarView("day");
-                  }}
-                  className={`min-h-[60px] md:min-h-[85px] p-1.5 md:p-2 border border-gray-100 rounded-xl flex flex-col justify-between hover:bg-amber-50/20 transition cursor-pointer ${isCurrentMonth ? "bg-white" : "bg-gray-50/40 text-gray-300"
-                    } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
-                >
-                  <span className={`text-[10px] font-bold self-end ${isToday ? "text-primary font-black" : "text-gray-600"}`}>
-                    {date.getDate()}
-                  </span>
-                  <div className="flex-1 flex flex-col gap-0.5 mt-1 overflow-y-auto max-h-[55px] pr-0.5">
-                    {/* Desktop: Show full text labels */}
-                    <div className="hidden md:flex flex-col gap-0.5">
-                      {daySchedules.map((s) => (
-                        <span
-                          key={s.id}
-                          className={`text-[8px] px-1 py-0.5 rounded truncate font-bold block leading-tight border ${s.priority === "HIGH"
-                            ? "bg-red-50 text-red-700 border-red-100"
-                            : s.priority === "LOW"
-                              ? "bg-gray-50 text-gray-500 border-gray-100"
-                              : "bg-amber-50 text-amber-800 border-amber-100"
-                            }`}
-                          title={s.title}
-                        >
-                          {new Date(s.startAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" })} {s.title}
+                <div key={weekIdx} className="grid grid-cols-7 gap-1.5">
+                  {week.map(({ date, isCurrentMonth }, idx) => {
+                    const daySchedules = getSchedulesForDate(date);
+                    const isToday = getLocalDateStr(date) === getLocalDateStr(new Date());
+
+                    // Align schedules to precalculated slot rows
+                    const maxRow = daySchedules.reduce((max, s) => {
+                      const row = rowAssignments.get(s.id) ?? 0;
+                      return Math.max(max, row);
+                    }, -1);
+
+                    const alignedSchedules: (ScheduleWithRelations | null)[] = [];
+                    for (let r = 0; r <= maxRow; r++) {
+                      const match = daySchedules.find((s) => rowAssignments.get(s.id) === r);
+                      alignedSchedules.push(match || null);
+                    }
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          setCalendarDate(date);
+                          setCalendarView("day");
+                        }}
+                        className={`min-h-[60px] md:min-h-[85px] p-1.5 md:p-2 border border-gray-100 rounded-xl flex flex-col justify-between hover:bg-amber-50/20 transition cursor-pointer relative overflow-visible ${isCurrentMonth ? "bg-white" : "bg-gray-50/40 text-gray-300"
+                          } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
+                      >
+                        <span className={`text-[10px] font-bold self-end ${isToday ? "text-primary font-black" : "text-gray-600"}`}>
+                          {date.getDate()}
                         </span>
-                      ))}
-                    </div>
-                    {/* Mobile: Show dots */}
-                    <div className="flex md:hidden justify-center items-center gap-0.5 flex-wrap mt-0.5">
-                      {daySchedules.slice(0, 3).map((s) => (
-                        <span
-                          key={s.id}
-                          className={`w-1.5 h-1.5 rounded-full ${s.priority === "HIGH"
-                            ? "bg-red-500"
-                            : s.priority === "LOW"
-                              ? "bg-gray-400"
-                              : "bg-amber-500"
-                            }`}
-                        />
-                      ))}
-                      {daySchedules.length > 3 && (
-                        <span className="text-[8px] text-gray-400 font-extrabold leading-none">+</span>
-                      )}
-                    </div>
-                  </div>
+                        <div className="flex-1 flex flex-col gap-0.5 mt-1 overflow-visible">
+                          {/* Desktop: Show aligned text labels */}
+                          <div className="hidden md:flex flex-col gap-0.5 overflow-visible">
+                            {alignedSchedules.map((s, sIdx) => {
+                              if (!s) {
+                                return <div key={`spacer-${sIdx}`} className="h-4" />;
+                              }
+
+                              const isStart = getLocalDateStr(date) === getLocalDateStr(new Date(s.startAt));
+                              const isEnd = getLocalDateStr(date) === getLocalDateStr(new Date(s.endAt || s.startAt));
+                              const isMultiDay = s.endAt && (getLocalDateStr(new Date(s.startAt)) !== getLocalDateStr(new Date(s.endAt)));
+
+                              let customStyle: React.CSSProperties = {};
+                              let borderLeftClass = "";
+
+                              if (s.priority === "HIGH") {
+                                borderLeftClass = "border-l-red-500";
+                              } else if (s.priority === "LOW") {
+                                borderLeftClass = "border-l-gray-400";
+                              } else {
+                                borderLeftClass = "border-l-amber-500";
+                              }
+
+                              if (isMultiDay) {
+                                const gap = 6;  // grid gap is 6px (gap-1.5)
+                                const pad = 8;  // md:p-2 is 8px
+                                const offset = gap + pad; // 14px
+
+                                if (isStart) {
+                                  customStyle = {
+                                    marginRight: `-${offset}px`,
+                                    borderRightWidth: 0,
+                                    borderTopRightRadius: 0,
+                                    borderBottomRightRadius: 0,
+                                    position: "relative",
+                                    zIndex: 5,
+                                  };
+                                } else if (isEnd) {
+                                  customStyle = {
+                                    marginLeft: `-${pad}px`,
+                                    borderLeftWidth: 0,
+                                    borderTopLeftRadius: 0,
+                                    borderBottomLeftRadius: 0,
+                                    position: "relative",
+                                    zIndex: 5,
+                                  };
+                                } else {
+                                  customStyle = {
+                                    marginLeft: `-${pad}px`,
+                                    marginRight: `-${offset}px`,
+                                    borderLeftWidth: 0,
+                                    borderRightWidth: 0,
+                                    borderRadius: 0,
+                                    position: "relative",
+                                    zIndex: 5,
+                                  };
+                                }
+                              }
+
+                              return (
+                                <span
+                                  key={s.id}
+                                  style={customStyle}
+                                  className={`text-[8px] px-1 py-0.5 rounded truncate font-bold block leading-tight border ${s.priority === "HIGH"
+                                    ? "bg-red-50 text-red-750 border-red-150"
+                                    : s.priority === "LOW"
+                                      ? "bg-gray-50 text-gray-500 border-gray-150"
+                                      : "bg-amber-50 text-amber-850 border-amber-150"
+                                    } ${isMultiDay && isStart ? `border-l-[3px] ${borderLeftClass}` : ""}`}
+                                  title={s.title}
+                                >
+                                  {isStart ? (
+                                    <>
+                                      {new Date(s.startAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" })} {s.title}
+                                    </>
+                                  ) : (
+                                    <span className="opacity-0 select-none">&nbsp;</span>
+                                  )}
+                                </span>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* Mobile: Show dots */}
+                          <div className="flex md:hidden justify-center items-center gap-0.5 flex-wrap mt-0.5">
+                            {daySchedules.slice(0, 3).map((s) => (
+                              <span
+                                key={s.id}
+                                className={`w-1.5 h-1.5 rounded-full ${s.priority === "HIGH"
+                                  ? "bg-red-500"
+                                  : s.priority === "LOW"
+                                    ? "bg-gray-400"
+                                    : "bg-amber-500"
+                                  }`}
+                              />
+                            ))}
+                            {daySchedules.length > 3 && (
+                              <span className="text-[8px] text-gray-400 font-extrabold leading-none">+</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -947,22 +1139,24 @@ function SchedulePageContent() {
 
         {/* Day Timeline View Layout */}
         {calendarView === "day" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Google Maps Route optimization banner */}
             {currentDaySchedules.length > 0 && (
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3.5 bg-gradient-to-r from-emerald-50 to-teal-50/60 border border-emerald-100 p-4 rounded-2xl shadow-xs">
-                <div className="flex items-start gap-2.5">
-                  <MapIcon className="w-5 h-5 text-emerald-700 mt-0.5 shrink-0" />
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-gradient-to-r from-emerald-50 via-teal-50/30 to-emerald-50/40 border border-emerald-100 p-5 rounded-2xl shadow-xs">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-emerald-100 rounded-xl text-emerald-800 shrink-0">
+                    <MapIcon className="w-5 h-5" />
+                  </div>
                   <div>
-                    <h4 className="text-sm font-bold text-emerald-950">Geographic Convoy Route Planning</h4>
-                    <p className="text-xs text-emerald-700 mt-1 font-medium">Optimize driver navigation for today's {currentDaySchedules.length} scheduled visits.</p>
+                    <h4 className="text-sm font-extrabold text-emerald-950 tracking-tight">Geographic Convoy Route Planning</h4>
+                    <p className="text-xs text-emerald-700 mt-1 font-medium leading-relaxed">Optimize driver navigation and sequence for today's {currentDaySchedules.length} scheduled visits.</p>
                   </div>
                 </div>
                 <a
                   href={getGoogleMapsRouteUrl(currentDaySchedules)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 whitespace-nowrap px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs hover:shadow-sm focus:outline-none"
+                  className="shrink-0 whitespace-nowrap px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md focus:outline-none"
                 >
                   <MapIcon className="w-3.5 h-3.5" />
                   <span>Open Route Maps</span>
@@ -971,11 +1165,11 @@ function SchedulePageContent() {
             )}
 
             {currentDaySchedules.length === 0 ? (
-              <div className="text-center py-16 border border-dashed border-gray-200 rounded-xl text-gray-400 text-xs italic">
+              <div className="text-center py-20 border border-dashed border-gray-250 rounded-2xl text-gray-400 text-xs font-sans bg-gray-50/30 font-semibold italic">
                 No schedules mapped for this date.
               </div>
             ) : (
-              <div className="relative border-l-2 border-gray-150 pl-6 ml-3 space-y-6">
+              <div className="relative border-l-3 border-amber-100 pl-8 ml-4 space-y-8 py-2">
                 {currentDaySchedules.map((s, idx) => {
                   const sStart = new Date(s.startAt);
                   const sEnd = new Date(s.endAt);
@@ -989,53 +1183,174 @@ function SchedulePageContent() {
 
                     if (diffMins < 0) {
                       gapAlert = (
-                        <div className="my-2 p-2 bg-red-50 border border-red-200 rounded-lg text-[10px] font-bold text-red-700 flex items-center gap-1.5 max-w-sm">
-                          <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                          <span>Timeline Conflict: Overlap of {Math.abs(diffMins)} minutes!</span>
+                        <div className="relative my-4 flex items-center gap-3">
+                          {/* Conflict indicator centered on timeline line */}
+                          <div className="absolute -left-[46px] top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-red-100 border border-red-300 text-red-600 animate-bounce shadow-sm z-10">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="inline-flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 px-3.5 py-1.5 rounded-xl text-[10px] font-extrabold shadow-2xs tracking-wide animate-pulse">
+                            <AlertCircle className="w-3.5 h-3.5 text-red-650" />
+                            <span>Timeline Conflict: Overlap of {Math.abs(diffMins)} minutes!</span>
+                          </div>
                         </div>
                       );
                     } else if (diffMins > 0) {
                       gapAlert = (
-                        <div className="my-2 p-2 bg-gray-50 border border-dashed border-gray-200 rounded-lg text-[10px] font-bold text-gray-500 flex items-center gap-1.5 max-w-sm">
-                          <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span>Convoy Travel Gap: {diffMins} minutes</span>
+                        <div className="relative my-4 flex items-center gap-3">
+                          {/* Dashed connector indicator centered on timeline line */}
+                          <div className="absolute -left-[46px] top-1/2 -translate-y-1/2 flex flex-col gap-0.5 items-center w-6 justify-center z-10">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                          </div>
+                          <div className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-150 text-gray-500 px-3.5 py-1.5 rounded-xl text-[10px] font-extrabold shadow-2xs tracking-wide">
+                            <Clock className="w-3.5 h-3.5 text-gray-400" />
+                            <span>Travel Gap: {diffMins} minutes</span>
+                          </div>
                         </div>
                       );
                     }
                   }
 
+                  // Determine timeline dot style based on status
+                  let dotElement = (
+                    <div className="absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 border-gray-400 bg-white shadow-xs text-gray-500 z-10">
+                      <div className="w-2 h-2 rounded-full bg-gray-400" />
+                    </div>
+                  );
+
+                  if (s.status === "COMPLETED") {
+                    dotElement = (
+                      <div className="absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 border-emerald-500 bg-white shadow-[0_0_8px_rgba(16,185,129,0.25)] text-emerald-600 z-10">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                    );
+                  } else if (s.status === "CANCELLED") {
+                    dotElement = (
+                      <div className="absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 border-red-500 bg-white shadow-[0_0_8px_rgba(239,68,68,0.25)] text-red-600 z-10">
+                        <X className="w-3.5 h-3.5" />
+                      </div>
+                    );
+                  } else if (s.status === "IN_PROGRESS" || s.status === "TRAVELLING" || s.status === "ARRIVED") {
+                    const ringColor = s.status === "IN_PROGRESS" ? "border-sky-500" : s.status === "ARRIVED" ? "border-teal-500" : "border-blue-500";
+                    const pingColor = s.status === "IN_PROGRESS" ? "bg-sky-500" : s.status === "ARRIVED" ? "bg-teal-500" : "bg-blue-500";
+                    dotElement = (
+                      <div className={`absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 ${ringColor} bg-white shadow-[0_0_8px_rgba(59,130,246,0.3)] z-10`}>
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${pingColor} opacity-75`}></span>
+                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${pingColor}`}></span>
+                        </span>
+                      </div>
+                    );
+                  } else if (s.status === "CONFIRMED") {
+                    dotElement = (
+                      <div className="absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 border-amber-500 bg-white shadow-xs text-amber-600 z-10">
+                        <Circle className="w-2 h-2 fill-amber-500 text-amber-500" />
+                      </div>
+                    );
+                  }
+
                   return (
                     <div key={s.id} className="relative">
-                      {/* Bullet point node */}
-                      <span className={`absolute -left-[31px] top-1.5 w-3.5 h-3.5 rounded-full border-2 bg-white ${s.status === "COMPLETED"
-                        ? "border-emerald-600 bg-emerald-50"
-                        : s.status === "CANCELLED"
-                          ? "border-red-600 bg-red-50"
-                          : "border-primary bg-amber-50"
-                        }`} />
+                      {dotElement}
 
-                      <div className="bg-gray-50/50 hover:bg-gray-50 border border-gray-150 rounded-xl p-4.5 max-w-2xl transition">
-                        <div className="flex justify-between items-start gap-3">
-                          <div>
-                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider block">
-                              {sStart.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} - {sEnd.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })}
-                            </span>
-                            <h3 className="text-sm font-bold text-gray-900 mt-1">{s.title}</h3>
-                            <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5 shrink-0 text-gray-400" />
-                              <span>{s.venue}</span>
+                      <div className={`bg-white hover:bg-slate-50/50 border border-gray-150 border-l-4 ${getStatusBorderColor(s.status)} rounded-2xl p-5 max-w-2xl transition-all duration-300 hover:shadow-md transform hover:-translate-y-0.5`}>
+                        <div className="flex justify-between items-start gap-4 flex-wrap sm:flex-nowrap">
+                          <div className="space-y-1.5 flex-1 min-w-[200px]">
+                            {/* Time range, category & priority header */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-150 text-gray-600 px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-2xs font-mono">
+                                <Clock className="w-3.5 h-3.5 text-gray-400" />
+                                {sStart.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })} - {sEnd.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
+                              </span>
+                              {s.priority && (
+                                <span className={`text-[9px] font-extrabold px-2 py-1 rounded-lg border uppercase tracking-wider ${s.priority === "HIGH"
+                                  ? "bg-red-50 text-red-700 border-red-150 shadow-2xs"
+                                  : s.priority === "LOW"
+                                    ? "bg-gray-50 text-gray-500 border-gray-150 shadow-2xs"
+                                    : "bg-amber-50 text-amber-800 border-amber-150 shadow-2xs"
+                                  }`}>
+                                  {s.priority} Priority
+                                </span>
+                              )}
+                              {s.category && (
+                                <span className="text-[9px] font-extrabold px-2 py-1 rounded-lg border bg-gray-50 text-gray-600 border-gray-150 uppercase tracking-wider shadow-2xs">
+                                  {s.category}
+                                </span>
+                              )}
+                            </div>
+                            
+                            <h3 className="text-base font-extrabold text-gray-900 leading-snug tracking-tight mt-2.5">{s.title}</h3>
+                            
+                            <p className="text-xs text-gray-500 mt-2 flex items-start gap-1.5 font-medium leading-normal">
+                              <MapPin className="w-4 h-4 shrink-0 text-primary mt-0.5" />
+                              <span className="break-words">{s.venue}</span>
+                              {s.googleMapsLink && (
+                                <a
+                                  href={s.googleMapsLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:text-amber-700 transition shrink-0 self-center"
+                                  title="Navigate on Google Maps"
+                                >
+                                  <MapIcon className="w-3.5 h-3.5 text-primary inline ml-1 hover:scale-110 transform transition" />
+                                </a>
+                              )}
                             </p>
                           </div>
-                          <span className={`text-[9px] px-2 py-0.5 border rounded-full uppercase font-bold shrink-0 ${getStatusColor(s.status)}`}>
+                          <span className={`text-[10px] px-2.5 py-1 border rounded-full uppercase font-black tracking-wider shrink-0 shadow-2xs ${getStatusColor(s.status)}`}>
                             {s.status.replace("_", " ")}
                           </span>
                         </div>
 
                         {s.description && (
-                          <p className="text-xs text-gray-600 mt-2.5 leading-relaxed">{s.description}</p>
+                          <p className="text-xs text-gray-600 bg-gray-50/70 border-l border-primary/30 pl-3 py-2 mt-4 rounded-r-xl font-normal leading-relaxed">
+                            {s.description}
+                          </p>
                         )}
 
-                        <div className="mt-3.5 pt-3 border-t border-gray-200 flex justify-between items-center text-[10px] text-gray-500 font-medium">
+                        {/* Contacts Display Section */}
+                        {s.contacts && s.contacts.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-gray-100 space-y-2.5">
+                            <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider block">Visit Contacts / Coordinators</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              {s.contacts.map((contact) => (
+                                <div key={contact.id} className="flex justify-between items-center bg-slate-50/50 border border-gray-150 rounded-xl p-3 hover:bg-slate-50 transition shadow-2xs">
+                                  <div className="min-w-0 flex-1 pr-2">
+                                    <p className="text-xs font-bold text-gray-800 truncate">{contact.name}</p>
+                                    {contact.designation && (
+                                      <p className="text-[10px] text-gray-500 truncate mt-0.5 font-medium">{contact.designation}</p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {contact.phone && (
+                                      <>
+                                        <a
+                                          href={`tel:${contact.phone}`}
+                                          className="p-2 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-100 hover:border-sky-200 rounded-xl transition shadow-3xs"
+                                          title={`Call ${contact.name}`}
+                                        >
+                                          <Phone className="w-3.5 h-3.5" />
+                                        </a>
+                                        <a
+                                          href={`https://wa.me/${contact.phone.replace(/[^0-9]/g, "")}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100 hover:border-emerald-200 rounded-xl transition shadow-3xs"
+                                          title={`WhatsApp ${contact.name}`}
+                                        >
+                                          <WhatsAppIcon className="w-3.5 h-3.5" />
+                                        </a>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-4.5 pt-3.5 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-500 font-medium">
                           {/* Assigned Staff commented out for future use
                           <span>Assigned Staff: {s.assignments && s.assignments.length > 0 ? s.assignments.map(a => a.user.name).join(", ") : "None"}</span>
                           */}
@@ -1043,9 +1358,10 @@ function SchedulePageContent() {
                           {canEdit && (
                             <button
                               onClick={() => { setEditScheduleId(s.id); setShowAddModal(true); }}
-                              className="text-primary font-bold hover:underline focus:outline-none cursor-pointer text-[10px]"
+                              className="flex items-center gap-1 text-primary hover:text-amber-700 font-bold hover:underline focus:outline-none cursor-pointer text-xs transition"
                             >
-                              Manage Visit
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Manage Visit</span>
                             </button>
                           )}
                         </div>
@@ -1096,8 +1412,7 @@ function SchedulePageContent() {
       setRefreshing(true);
       setPullDistance(30);
       try {
-        const fetchTab = viewMode === "calendar" ? "all" : activeTab;
-        await loadData(fetchTab);
+        await loadData();
       } finally {
         setRefreshing(false);
         setPullDistance(0);
@@ -1134,166 +1449,352 @@ function SchedulePageContent() {
     setSheetOffset(0);
   };
 
-  const renderScheduleCard = (schedule: ScheduleWithRelations) => {
-    return (
-      <div key={schedule.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs">
-        {/* Header: Title and Badges */}
-        <div className="flex justify-between items-start gap-3 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <h2 className="text-sm font-bold text-gray-900 leading-snug">{schedule.title}</h2>
-            {/* Minimal Sub-header: Date / Time / Venue */}
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1 text-[11px] text-gray-500 font-medium font-sans">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                {new Date(schedule.startAt).toLocaleDateString("en-IN", {
-                  weekday: "short",
-                  day: "numeric",
-                  month: "short",
-                  timeZone: "Asia/Kolkata",
-                })}
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-gray-400" />
-                {new Date(schedule.startAt).toLocaleTimeString("en-IN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone: "Asia/Kolkata",
-                })}
-                {" - "}
-                {new Date(schedule.endAt).toLocaleTimeString("en-IN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone: "Asia/Kolkata",
-                })}
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1 max-w-[250px] truncate">
-                <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <span className="truncate">{schedule.venue}</span>
-                {schedule.googleMapsLink && (
-                  <a
-                    href={schedule.googleMapsLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:text-amber-700 transition"
-                    title="Navigate on Google Maps"
-                  >
-                    <MapIcon className="w-3.5 h-3.5 text-primary inline" />
-                  </a>
-                )}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap font-sans">
-            {schedule.priority && (
-              <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase ${schedule.priority === "HIGH"
-                ? "bg-red-50 text-red-700 border-red-150"
-                : schedule.priority === "LOW"
-                  ? "bg-gray-50 text-gray-500 border-gray-150"
-                  : "bg-amber-50 text-amber-800 border-amber-150"
-                }`}>
-                {schedule.priority}
-              </span>
-            )}
-            {schedule.category && (
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded border bg-gray-50 text-gray-600 border-gray-150 uppercase">
-                {schedule.category}
-              </span>
-            )}
-            {!isReadOnlyViewer ? (
-              canEdit ? (
-                <select
-                  value={schedule.status}
-                  onChange={async (e) => {
-                    const newStatus = e.target.value;
-                    try {
-                      const res = await fetch(`/api/schedules/${schedule.id}`, {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ status: newStatus }),
-                      });
-                      if (res.ok) {
-                        showToast("Status updated successfully!");
-                        loadData(activeTab);
+  const ScheduleCard = ({ schedule }: { schedule: ScheduleWithRelations }) => {
+    const [swipeOffset, setSwipeOffset] = useState(0);
+    const [isSwiping, setIsSwiping] = useState(false);
+    const [isSwiped, setIsSwiped] = useState(false);
+    const startX = useRef(0);
+    const startY = useRef(0);
+    const currentX = useRef(0);
 
-                        // Trigger WhatsApp sharing dialog if contacts exist
-                        if (schedule.contacts && schedule.contacts.length > 0) {
-                          setShowWhatsAppPrompt({ schedule, newStatus });
-                        }
-                      } else {
-                        const err = await res.json();
-                        if (err.allowOverride) {
-                          const reason = prompt(
-                            `${err.error}\n\nAs Super Admin, you can override this. Enter override reason to complete:`
-                          );
-                          if (reason) {
-                            const overrideRes = await fetch(`/api/schedules/${schedule.id}`, {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                status: newStatus,
-                                override: { reason },
-                              }),
-                            });
-                            if (overrideRes.ok) {
-                              showToast("Status updated successfully via override!");
-                              loadData(activeTab);
-                              if (schedule.contacts && schedule.contacts.length > 0) {
-                                setShowWhatsAppPrompt({ schedule, newStatus });
-                              }
-                              return;
-                            } else {
-                              const overrideErr = await overrideRes.json();
-                              showToast(overrideErr.error || "Override update failed", "error");
-                            }
+    const getMaxSwipeWidth = () => {
+      let width = 0;
+      if (!isReadOnlyViewer && schedule.contacts.length > 0) width += 65; // WhatsApp
+      if ((!isReadOnlyViewer && schedule.status !== "DRAFT") || (isReadOnlyViewer && schedule.socialMediaUpdate)) width += 65; // Social
+      if (!isReadOnlyViewer && canEdit) width += 60; // Edit
+      if (!isReadOnlyViewer && canDelete) width += 60; // Delete
+      return width;
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+      startX.current = e.touches[0].clientX;
+      startY.current = e.touches[0].clientY;
+      currentX.current = startX.current;
+      setIsSwiping(true);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+      if (!isSwiping) return;
+      const diffX = e.touches[0].clientX - startX.current;
+      const diffY = e.touches[0].clientY - startY.current;
+
+      // If swiping horizontally more than vertically
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        const maxSwipe = getMaxSwipeWidth();
+        let offset = diffX;
+        if (isSwiped) {
+          offset = -maxSwipe + diffX;
+        }
+
+        // Limit swiping direction: can only swipe left (negative values)
+        if (offset > 0) {
+          offset = offset * 0.1; // resistance when dragging right
+        } else if (offset < -maxSwipe) {
+          const excess = offset + maxSwipe;
+          offset = -maxSwipe + excess * 0.2; // resistance when dragging past max
+        }
+
+        setSwipeOffset(offset);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      setIsSwiping(false);
+      const maxSwipe = getMaxSwipeWidth();
+      const threshold = -maxSwipe / 2;
+      if (swipeOffset < threshold) {
+        setSwipeOffset(-maxSwipe);
+        setIsSwiped(true);
+      } else {
+        setSwipeOffset(0);
+        setIsSwiped(false);
+      }
+    };
+
+    const handleCardClick = (e: React.MouseEvent) => {
+      if (isSwiped) {
+        e.stopPropagation();
+        e.preventDefault();
+        setSwipeOffset(0);
+        setIsSwiped(false);
+      }
+    };
+
+    const maxSwipe = getMaxSwipeWidth();
+
+    return (
+      <div className="relative overflow-hidden w-full rounded-xl bg-slate-100 flex items-stretch border border-gray-200 select-none shadow-xs touch-pan-y">
+        {/* Background Swipe Actions Layer */}
+        {maxSwipe > 0 && (
+          <div className="absolute right-0 top-0 bottom-0 flex items-stretch z-0">
+            {/* WhatsApp Share Button */}
+            {!isReadOnlyViewer && schedule.contacts.length > 0 && (
+              <button
+                onClick={() => {
+                  setSwipeOffset(0);
+                  setIsSwiped(false);
+                  setShowWhatsAppPrompt({ schedule, newStatus: schedule.status });
+                }}
+                className="flex flex-col items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white w-[65px] transition active:opacity-85"
+                title="Share Status"
+              >
+                <WhatsAppIcon className="w-4 h-4" />
+                <span className="text-[8px] font-bold mt-1">Share</span>
+              </button>
+            )}
+
+            {/* Social Button */}
+            {((!isReadOnlyViewer && schedule.status !== "DRAFT") || (isReadOnlyViewer && schedule.socialMediaUpdate)) && (
+              <Link
+                href={`/schedule/${schedule.id}/social-media`}
+                onClick={() => {
+                  setSwipeOffset(0);
+                  setIsSwiped(false);
+                }}
+                className="flex flex-col items-center justify-center bg-blue-600 hover:bg-blue-700 text-white w-[65px] transition active:opacity-85"
+              >
+                <Share2 className="w-4 h-4" />
+                <span className="text-[8px] font-bold mt-1">Social</span>
+              </Link>
+            )}
+
+            {/* Edit Button */}
+            {!isReadOnlyViewer && canEdit && (
+              <button
+                onClick={() => {
+                  setSwipeOffset(0);
+                  setIsSwiped(false);
+                  setEditScheduleId(schedule.id);
+                  setShowAddModal(true);
+                }}
+                className="flex flex-col items-center justify-center bg-amber-500 hover:bg-amber-600 text-white w-[60px] transition active:opacity-85"
+                title="Edit"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span className="text-[8px] font-bold mt-1">Edit</span>
+              </button>
+            )}
+
+            {/* Delete Button */}
+            {!isReadOnlyViewer && canDelete && (
+              <button
+                onClick={() => {
+                  setSwipeOffset(0);
+                  setIsSwiped(false);
+                  setDeleteConfirmId(schedule.id);
+                }}
+                className="flex flex-col items-center justify-center bg-red-650 hover:bg-red-700 text-white w-[60px] transition active:opacity-85"
+                title="Delete"
+              >
+                <Trash className="w-4 h-4" />
+                <span className="text-[8px] font-bold mt-1">Delete</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Foreground Content Card Layer */}
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onClick={handleCardClick}
+          style={{
+            transform: `translateX(${swipeOffset}px)`,
+            transition: isSwiping ? "none" : "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+          className="bg-white p-4 relative z-10 w-full flex flex-col justify-between rounded-xl"
+        >
+          {/* Header: Title and Status/Desktop Actions */}
+          <div className="flex justify-between items-start gap-3 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <h2 className="text-sm font-bold text-gray-900 leading-snug">{schedule.title}</h2>
+              {/* Minimal Sub-header: Date / Time / Venue */}
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1 text-[11px] text-gray-500 font-medium font-sans">
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                  {new Date(schedule.startAt).toLocaleDateString("en-IN", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    timeZone: "Asia/Kolkata",
+                  })}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-gray-400" />
+                  {new Date(schedule.startAt).toLocaleTimeString("en-IN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "Asia/Kolkata",
+                  })}
+                  {" - "}
+                  {new Date(schedule.endAt).toLocaleTimeString("en-IN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    timeZone: "Asia/Kolkata",
+                  })}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1 max-w-[250px] truncate">
+                  <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span className="truncate">{schedule.venue}</span>
+                  {schedule.googleMapsLink && (
+                    <a
+                      href={schedule.googleMapsLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-amber-700 transition"
+                      title="Navigate on Google Maps"
+                    >
+                      <MapIcon className="w-3.5 h-3.5 text-primary inline" />
+                    </a>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            {/* Desktop Action Buttons & Status Selector */}
+            <div className="flex items-center gap-1.5 flex-wrap font-sans">
+              {/* WhatsApp Quick Share if contacts exist (Desktop only) */}
+              {!isReadOnlyViewer && schedule.contacts.length > 0 && (
+                <button
+                  onClick={() => setShowWhatsAppPrompt({ schedule, newStatus: schedule.status })}
+                  className="hidden md:inline-flex items-center justify-center p-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-250 text-emerald-800 rounded-lg transition"
+                  title="Share schedule status update via WhatsApp"
+                >
+                  <WhatsAppIcon className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Social Button (Desktop only) */}
+              {((!isReadOnlyViewer && schedule.status !== "DRAFT") || (isReadOnlyViewer && schedule.socialMediaUpdate)) && (
+                <Link
+                  href={`/schedule/${schedule.id}/social-media`}
+                  className="hidden md:inline-flex items-center justify-center p-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-250 text-blue-800 rounded-lg transition"
+                  title="Social Updates"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                </Link>
+              )}
+
+              {/* Edit Button (Desktop only) */}
+              {!isReadOnlyViewer && canEdit && (
+                <button
+                  onClick={() => { setEditScheduleId(schedule.id); setShowAddModal(true); }}
+                  className="hidden md:inline-flex items-center justify-center p-1.5 border border-gray-250 hover:bg-gray-50 text-gray-700 rounded-lg transition cursor-pointer"
+                  title="Edit"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Delete Button (Desktop only) */}
+              {!isReadOnlyViewer && canDelete && (
+                <button
+                  onClick={() => setDeleteConfirmId(schedule.id)}
+                  className="hidden md:inline-flex items-center justify-center p-1.5 bg-red-50 hover:bg-red-100 border border-red-250 text-red-700 rounded-lg transition cursor-pointer"
+                  title="Delete"
+                >
+                  <Trash className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Status Selector */}
+              {!isReadOnlyViewer ? (
+                canEdit ? (
+                  <select
+                    value={schedule.status}
+                    onChange={async (e) => {
+                      const newStatus = e.target.value;
+                      try {
+                        const res = await fetch(`/api/schedules/${schedule.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ status: newStatus }),
+                        });
+                        if (res.ok) {
+                          showToast("Status updated successfully!");
+                          loadData();
+
+                          if (schedule.contacts && schedule.contacts.length > 0) {
+                            setShowWhatsAppPrompt({ schedule, newStatus });
                           }
                         } else {
-                          showToast(err.error || "Failed to update status", "error");
+                          const err = await res.json();
+                          if (err.allowOverride) {
+                            const reason = prompt(
+                              `${err.error}\n\nAs Super Admin, you can override this. Enter override reason to complete:`
+                            );
+                            if (reason) {
+                              const overrideRes = await fetch(`/api/schedules/${schedule.id}`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  status: newStatus,
+                                  override: { reason },
+                                }),
+                              });
+                              if (overrideRes.ok) {
+                                showToast("Status updated successfully via override!");
+                                loadData();
+                                if (schedule.contacts && schedule.contacts.length > 0) {
+                                  setShowWhatsAppPrompt({ schedule, newStatus });
+                                }
+                                return;
+                              } else {
+                                const overrideErr = await overrideRes.json();
+                                showToast(overrideErr.error || "Override update failed", "error");
+                              }
+                            }
+                          } else {
+                            showToast(err.error || "Failed to update status", "error");
+                          }
+                          loadData();
                         }
-                        loadData(activeTab);
+                      } catch (err: any) {
+                        showToast(err.message || "Error updating status", "error");
+                        loadData();
                       }
-                    } catch (err: any) {
-                      showToast(err.message || "Error updating status", "error");
-                      loadData(activeTab);
-                    }
-                  }}
-                  className={`status-select-badge text-[10px] h-6 py-0 ${getStatusColor(schedule.status)}`}
-                >
-                  <option value="DRAFT">Draft</option>
-                  <option value="CONFIRMED">Confirmed</option>
-                  <option value="TRAVELLING">Travelling</option>
-                  <option value="ARRIVED">Arrived</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="POSTPONED">Postponed</option>
-                  <option value="CANCELLED">Cancelled</option>
-                </select>
+                    }}
+                    className={`status-select-badge text-[10px] h-6 py-0 ${getStatusColor(schedule.status)}`}
+                  >
+                    <option value="DRAFT">Draft</option>
+                    <option value="CONFIRMED">Confirmed</option>
+                    <option value="TRAVELLING">Travelling</option>
+                    <option value="ARRIVED">Arrived</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="POSTPONED">Postponed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                ) : (
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full border uppercase font-extrabold ${getStatusColor(schedule.status)}`}>
+                    {schedule.status.replace("_", " ")}
+                  </span>
+                )
               ) : (
                 <span className={`text-[9px] px-2 py-0.5 rounded-full border uppercase font-extrabold ${getStatusColor(schedule.status)}`}>
                   {schedule.status.replace("_", " ")}
                 </span>
-              )
-            ) : (
-              <span className={`text-[9px] px-2 py-0.5 rounded-full border uppercase font-extrabold ${getStatusColor(schedule.status)}`}>
-                {schedule.status.replace("_", " ")}
-              </span>
-            )}
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Visit Description */}
-        {schedule.description && (
-          <p className="text-[11px] text-gray-600 bg-gray-50/50 border-l-2 border-primary/30 pl-2 py-1 mt-2.5 rounded font-sans leading-relaxed">
-            {schedule.description}
-          </p>
-        )}
+          {/* Description */}
+          {schedule.description && (
+            <p className="text-[11px] text-gray-600 bg-gray-50/50 border-l-2 border-primary/30 pl-2 py-1 mt-2.5 rounded font-sans leading-relaxed">
+              {schedule.description}
+            </p>
+          )}
 
-        {/* Linked Contacts & Staff details */}
-        {!isReadOnlyViewer && (schedule.contacts.length > 0 || schedule.assignments.length > 0) && (
-          <div className="mt-2.5 space-y-1.5 text-[11px] text-gray-600 font-sans border-t border-gray-100 pt-2.5">
-            {/* Contacts */}
-            {schedule.contacts.length > 0 && (
+          {/* Linked Contacts */}
+          {!isReadOnlyViewer && schedule.contacts.length > 0 && (
+            <div className="mt-2.5 space-y-1.5 text-[11px] text-gray-600 font-sans border-t border-gray-100 pt-2.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold text-gray-500">Contacts:</span>
                 {schedule.contacts.map((contact) => (
@@ -1327,77 +1828,15 @@ function SchedulePageContent() {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Actions Footer */}
-        <div className="flex gap-2 justify-between items-center mt-3.5 pt-3 border-t border-gray-150 flex-wrap">
-          {/* Left side actions (WhatsApp Quick Share if contacts exist) */}
-          <div>
-            {!isReadOnlyViewer && schedule.contacts.length > 0 && (
-              <button
-                onClick={() => setShowWhatsAppPrompt({ schedule, newStatus: schedule.status })}
-                className="inline-flex items-center gap-1 px-2 h-7 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-lg text-[10px] transition focus:outline-none"
-                title="Share schedule status update via WhatsApp"
-              >
-                <WhatsAppIcon className="w-3 h-3" />
-                <span>Share Status</span>
-              </button>
-            )}
-          </div>
-
-          {/* Right side actions */}
-          <div className="flex items-center gap-1.5">
-            {isReadOnlyViewer ? (
-              <>
-                {schedule.socialMediaUpdate && (
-                  <Link
-                    href={`/schedule/${schedule.id}/social-media`}
-                    className="flex items-center gap-1 px-2.5 h-7 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold rounded-lg text-[10px] transition"
-                  >
-                    <Share2 className="w-3 h-3" />
-                    <span>Social</span>
-                  </Link>
-                )}
-              </>
-            ) : (
-              <>
-                {schedule.status !== "DRAFT" && (
-                  <Link
-                    href={`/schedule/${schedule.id}/social-media`}
-                    className="flex items-center gap-1 px-2.5 h-7 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold rounded-lg text-[10px] transition"
-                  >
-                    <Share2 className="w-3 h-3" />
-                    <span>Social</span>
-                  </Link>
-                )}
-
-                {canEdit && (
-                  <button
-                    onClick={() => { setEditScheduleId(schedule.id); setShowAddModal(true); }}
-                    className="flex items-center gap-1 px-2.5 h-7 border border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg text-[10px] transition cursor-pointer focus:outline-none"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                    <span>Edit</span>
-                  </button>
-                )}
-
-                {canDelete && (
-                  <button
-                    onClick={() => setDeleteConfirmId(schedule.id)}
-                    className="flex items-center gap-1 px-2.5 h-7 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-semibold rounded-lg text-[10px] transition cursor-pointer focus:outline-none"
-                  >
-                    <Trash className="w-3 h-3" />
-                    <span>Delete</span>
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     );
+  };
+
+  const renderScheduleCard = (schedule: ScheduleWithRelations) => {
+    return <ScheduleCard key={schedule.id} schedule={schedule} />;
   };
 
   const getGroupedAllSchedules = () => {
@@ -2004,7 +2443,7 @@ function SchedulePageContent() {
           isOpen={showAddModal}
           onClose={() => { setShowAddModal(false); setEditScheduleId(null); }}
           onSave={() => {
-            loadData(activeTab);
+            loadData();
             showToast(editScheduleId ? "Schedule updated successfully!" : "Schedule created successfully!");
           }}
           editId={editScheduleId}
