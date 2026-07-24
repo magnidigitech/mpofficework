@@ -322,7 +322,7 @@ export async function GET(req: NextRequest) {
         data: {
           emailVerified: true,
           mustChangePassword: true,
-          mobileNumber: "9876543210",
+          mobileNumber: "9876543212",
           updatedAt: new Date(),
         },
       });

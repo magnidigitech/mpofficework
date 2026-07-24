@@ -260,228 +260,88 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            {/* Checklist items remaining */}
-            <Link 
-              href="/schedule?tab=all" 
-              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-200 transition cursor-pointer"
-            >
-              <div>
-                <h3 className="font-semibold text-gray-700 text-xs">Pending Checklists</h3>
-                <span className="text-xl font-black text-gray-900 mt-1 block">{metrics?.pendingChecklists || 0}</span>
-              </div>
-              <CheckSquare className="w-8 h-8 text-primary/30" />
-            </Link>
+          {/* Today's Schedule status coverage */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs mb-8">
+            <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5 font-sans">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span>Today's Visit Status</span>
+            </h3>
 
-            {/* Social media links pending */}
-            <Link 
-              href="/schedule?tab=all" 
-              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex flex-col justify-between hover:shadow-md hover:border-amber-200 transition cursor-pointer"
-            >
-              <div className="flex items-start justify-between w-full">
-                <div>
-                  <h3 className="font-semibold text-gray-700 text-xs">Pending Social Tracks</h3>
-                  <span className="text-xl font-black text-gray-900 mt-1 block">{metrics?.pendingSocialMedia || 0}</span>
-                </div>
-                <Layers className="w-6 h-6 text-primary/30" />
-              </div>
-              
-              <div className="mt-3 pt-2.5 border-t border-gray-100 grid grid-cols-2 gap-1 text-[9px] font-bold text-gray-400">
-                <div>
-                  PENDING APPR: <span className="text-gray-700">{(metrics as any)?.smWaitingApprovalCount || 0}</span>
-                </div>
-                <div>
-                  PARTIAL POSTS: <span className="text-gray-700">{(metrics as any)?.smPartiallyPublishedCount || 0}</span>
-                </div>
-              </div>
-            </Link>
+            {(() => {
+              const total = metrics?.todayTotal || 0;
+              const completed = metrics?.todayCompleted || 0;
+              const upcoming = metrics?.todayUpcoming || 0;
+              const cancelled = metrics?.todayCancelled || 0;
 
-            {/* TTD Quota Used */}
-            <Link 
-              href="/ttd-letters" 
-              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-200 transition cursor-pointer"
-            >
-              <div>
-                <h3 className="font-semibold text-gray-700 text-xs">TTD Quota Used</h3>
-                <span className="text-xl font-black text-gray-900 mt-1 block">{metrics?.ttdQuotaUsed || 0}</span>
-              </div>
-              <Award className="w-8 h-8 text-primary/30" />
-            </Link>
+              const compPercent = total > 0 ? (completed / total) * 100 : 0;
+              const upPercent = total > 0 ? (upcoming / total) * 100 : 0;
+              const cancPercent = total > 0 ? (cancelled / total) * 100 : 0;
 
-            {/* TTD Quota Available */}
-            <Link 
-              href="/ttd-letters" 
-              className="bg-white border border-gray-200 rounded-lg p-4.5 shadow-sm flex items-center justify-between hover:shadow-md hover:border-emerald-250 transition cursor-pointer"
-            >
-              <div>
-                <h3 className="font-semibold text-gray-700 text-xs">TTD Quota Available</h3>
-                <span className="text-xl font-black text-emerald-700 mt-1 block">{metrics?.ttdQuotaAvailable || 0}</span>
-              </div>
-              <FileText className="w-8 h-8 text-emerald-600/20" />
-            </Link>
-          </div>
-
-          {/* Analytics Summary and pure SVG Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Chart Card 1: TTD Letters Quota Utilization */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                  <Award className="w-4 h-4 text-primary" />
-                  <span>TTD Quota Utilization</span>
-                </h3>
-                
-                {(() => {
-                  const used = metrics?.ttdQuotaUsed || 0;
-                  const available = metrics?.ttdQuotaAvailable || 0;
-                  const total = used + available;
-                  const percent = total > 0 ? Math.round((used / total) * 100) : 0;
-                  const radius = 38;
-                  const circumference = 2 * Math.PI * radius;
-                  const strokeOffset = circumference - (percent / 100) * circumference;
-
-                  return (
-                    <div className="flex items-center gap-6">
-                      <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
-                        <svg className="w-full h-full transform -rotate-90">
-                          {/* Background circle track */}
-                          <circle
-                            cx="56"
-                            cy="56"
-                            r={radius}
-                            className="stroke-gray-100 fill-transparent"
-                            strokeWidth="8"
-                          />
-                          {/* Foreground progress indicator */}
-                          <circle
-                            cx="56"
-                            cy="56"
-                            r={radius}
-                            className="stroke-primary fill-transparent transition-all duration-500 ease-out"
-                            strokeWidth="8"
-                            strokeDasharray={circumference}
-                            strokeDashoffset={strokeOffset}
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                        <div className="absolute flex flex-col items-center justify-center text-center">
-                          <span className="text-sm font-black text-gray-900">{percent}%</span>
-                          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Used</span>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 space-y-2">
-                        <div className="text-xs font-semibold text-gray-700">
-                          Quota Period Status:
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-wide">
-                          <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-2 text-center">
-                            <span className="text-gray-400 block text-[8px] mb-0.5">Used Letters</span>
-                            <span className="text-primary text-sm font-black">{used}</span>
-                          </div>
-                          <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-2 text-center">
-                            <span className="text-gray-400 block text-[8px] mb-0.5">Available Slots</span>
-                            <span className="text-emerald-700 text-sm font-black">{available}</span>
-                          </div>
-                        </div>
-                        <div className="text-[10px] text-gray-500 leading-normal font-sans">
-                          {total > 0 
-                            ? `${used} out of total ${total} official recommendation letters issued or reserved for this quota season.`
-                            : "No active quota periods allocated at the moment."
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* Chart Card 2: Today's Schedule status coverage */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  <span>Today's Visit Status</span>
-                </h3>
-
-                {(() => {
-                  const total = metrics?.todayTotal || 0;
-                  const completed = metrics?.todayCompleted || 0;
-                  const upcoming = metrics?.todayUpcoming || 0;
-                  const cancelled = metrics?.todayCancelled || 0;
-
-                  const compPercent = total > 0 ? (completed / total) * 100 : 0;
-                  const upPercent = total > 0 ? (upcoming / total) * 100 : 0;
-                  const cancPercent = total > 0 ? (cancelled / total) * 100 : 0;
-
-                  return (
-                    <div className="space-y-4">
-                      {/* Horizontal Stacked Bar */}
-                      <div className="h-6 w-full rounded-xl bg-gray-100 overflow-hidden flex shadow-inner">
-                        {total > 0 ? (
-                          <>
-                            {completed > 0 && (
-                              <div 
-                                style={{ width: `${compPercent}%` }} 
-                                className="bg-emerald-600 h-full transition-all duration-300 relative group flex items-center justify-center"
-                                title={`Completed: ${completed}`}
-                              >
-                                <span className="text-[9px] font-black text-white">{completed}</span>
-                              </div>
-                            )}
-                            {upcoming > 0 && (
-                              <div 
-                                style={{ width: `${upPercent}%` }} 
-                                className="bg-amber-500 h-full transition-all duration-300 relative group flex items-center justify-center"
-                                title={`Upcoming: ${upcoming}`}
-                              >
-                                <span className="text-[9px] font-black text-white">{upcoming}</span>
-                              </div>
-                            )}
-                            {cancelled > 0 && (
-                              <div 
-                                style={{ width: `${cancPercent}%` }} 
-                                className="bg-red-500 h-full transition-all duration-300 relative group flex items-center justify-center"
-                                title={`Cancelled: ${cancelled}`}
-                              >
-                                <span className="text-[9px] font-black text-white">{cancelled}</span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400 font-bold">
-                            No visits scheduled for today.
+              return (
+                <div className="space-y-4">
+                  {/* Horizontal Stacked Bar */}
+                  <div className="h-6 w-full rounded-xl bg-gray-100 overflow-hidden flex shadow-inner">
+                    {total > 0 ? (
+                      <>
+                        {completed > 0 && (
+                          <div 
+                            style={{ width: `${compPercent}%` }} 
+                            className="bg-emerald-600 h-full transition-all duration-300 relative group flex items-center justify-center"
+                            title={`Completed: ${completed}`}
+                          >
+                            <span className="text-[9px] font-black text-white">{completed}</span>
                           </div>
                         )}
+                        {upcoming > 0 && (
+                          <div 
+                            style={{ width: `${upPercent}%` }} 
+                            className="bg-amber-500 h-full transition-all duration-300 relative group flex items-center justify-center"
+                            title={`Upcoming: ${upcoming}`}
+                          >
+                            <span className="text-[9px] font-black text-white">{upcoming}</span>
+                          </div>
+                        )}
+                        {cancelled > 0 && (
+                          <div 
+                            style={{ width: `${cancPercent}%` }} 
+                            className="bg-red-500 h-full transition-all duration-300 relative group flex items-center justify-center"
+                            title={`Cancelled: ${cancelled}`}
+                          >
+                            <span className="text-[9px] font-black text-white">{cancelled}</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400 font-bold font-sans">
+                        No visits scheduled for today.
                       </div>
+                    )}
+                  </div>
 
-                      {/* Status Legends */}
-                      <div className="grid grid-cols-3 gap-2.5 pt-1 text-[10px] font-bold font-sans">
-                        <div className="flex items-center gap-1.5 text-gray-600">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block shrink-0"></span>
-                          <span className="truncate">COMPLETED ({completed})</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-gray-600">
-                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shrink-0"></span>
-                          <span className="truncate">UPCOMING ({upcoming})</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-gray-600">
-                          <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shrink-0"></span>
-                          <span className="truncate">CANCELLED ({cancelled})</span>
-                        </div>
-                      </div>
-                      
-                      <div className="text-[10px] text-gray-500 leading-normal font-sans pt-1 border-t border-gray-100">
-                        Total visits on today's agenda: <span className="font-bold text-gray-900">{total}</span>. 
-                        {completed === total && total > 0 && " 🎉 All scheduled tours completed successfully!"}
-                        {completed < total && total > 0 && ` ${upcoming} tours are remaining.`}
-                      </div>
+                  {/* Status Legends */}
+                  <div className="grid grid-cols-3 gap-2.5 pt-1 text-[10px] font-bold font-sans">
+                    <div className="flex items-center gap-1.5 text-gray-600 font-sans">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block shrink-0"></span>
+                      <span className="truncate">COMPLETED ({completed})</span>
                     </div>
-                  );
-                })()}
-              </div>
-            </div>
+                    <div className="flex items-center gap-1.5 text-gray-600 font-sans">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shrink-0"></span>
+                      <span className="truncate">UPCOMING ({upcoming})</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-600 font-sans">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shrink-0"></span>
+                      <span className="truncate">CANCELLED ({cancelled})</span>
+                    </div>
+                  </div>
+                  
+                  <div className="text-[10px] text-gray-500 leading-normal font-sans pt-1 border-t border-gray-100">
+                    Total visits on today's agenda: <span className="font-bold text-gray-900">{total}</span>. 
+                    {completed === total && total > 0 && " 🎉 All scheduled tours completed successfully!"}
+                    {completed < total && total > 0 && ` ${upcoming} tours are remaining.`}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </>
       )}
@@ -510,7 +370,7 @@ export default function Dashboard() {
       )}
 
       {/* Grid: Next Visit & Tomorrow Preview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Next Upcoming Visit */}
         <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm flex flex-col">
           <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2 border-b border-gray-100 pb-2">
@@ -643,6 +503,116 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* TTD Recommendation Letters Section */}
+      <div className="space-y-4 mb-8 mt-10">
+        <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2 border-b border-gray-100 pb-2 font-sans">
+          <Award className="w-4 h-4 text-primary" />
+          TTD Recommendations Overview
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Column 1: TTD Quota Cards */}
+          <div className="space-y-4 flex flex-col justify-between">
+            {/* TTD Quota Used */}
+            <Link 
+              href="/ttd-letters" 
+              className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-200 transition cursor-pointer flex-1 mb-2"
+            >
+              <div>
+                <h3 className="font-semibold text-gray-700 text-xs">TTD Quota Used</h3>
+                <span className="text-xl font-black text-gray-900 mt-1 block">{metrics?.ttdQuotaUsed || 0}</span>
+              </div>
+              <Award className="w-8 h-8 text-primary/30" />
+            </Link>
+
+            {/* TTD Quota Available */}
+            <Link 
+              href="/ttd-letters" 
+              className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between hover:shadow-md hover:border-emerald-250 transition cursor-pointer flex-1 mt-2"
+            >
+              <div>
+                <h3 className="font-semibold text-gray-700 text-xs">TTD Quota Available</h3>
+                <span className="text-xl font-black text-emerald-700 mt-1 block">{metrics?.ttdQuotaAvailable || 0}</span>
+              </div>
+              <FileText className="w-8 h-8 text-emerald-600/20" />
+            </Link>
+          </div>
+
+          {/* Column 2 & 3: TTD Quota Utilization Chart (Col-span 2) */}
+          <div className="md:col-span-2 bg-white border border-gray-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <h3 className="font-bold text-gray-900 text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5 font-sans">
+                <Award className="w-4 h-4 text-primary" />
+                <span>TTD Quota Utilization</span>
+              </h3>
+              
+              {(() => {
+                const used = metrics?.ttdQuotaUsed || 0;
+                const available = metrics?.ttdQuotaAvailable || 0;
+                const total = used + available;
+                const percent = total > 0 ? Math.round((used / total) * 100) : 0;
+                const radius = 38;
+                const circumference = 2 * Math.PI * radius;
+                const strokeOffset = circumference - (percent / 100) * circumference;
+
+                return (
+                  <div className="flex items-center gap-6">
+                    <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        {/* Background circle track */}
+                        <circle
+                          cx="56"
+                          cy="56"
+                          r={radius}
+                          className="stroke-gray-100 fill-transparent"
+                          strokeWidth="8"
+                        />
+                        {/* Foreground progress indicator */}
+                        <circle
+                          cx="56"
+                          cy="56"
+                          r={radius}
+                          className="stroke-primary fill-transparent transition-all duration-500 ease-out"
+                          strokeWidth="8"
+                          strokeDasharray={circumference}
+                          strokeDashoffset={strokeOffset}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute flex flex-col items-center justify-center text-center">
+                        <span className="text-sm font-black text-gray-900">{percent}%</span>
+                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Used</span>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 space-y-2">
+                      <div className="text-xs font-semibold text-gray-700">
+                        Quota Period Status:
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-bold uppercase tracking-wide">
+                        <div className="bg-amber-50/50 border border-amber-100 rounded-lg p-2 text-center font-sans">
+                          <span className="text-gray-400 block text-[8px] mb-0.5">Used Letters</span>
+                          <span className="text-primary text-sm font-black">{used}</span>
+                        </div>
+                        <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-2 text-center font-sans">
+                          <span className="text-gray-400 block text-[8px] mb-0.5">Available Slots</span>
+                          <span className="text-emerald-700 text-sm font-black">{available}</span>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-gray-500 leading-normal font-sans">
+                        {total > 0 
+                          ? `${used} out of total ${total} official recommendation letters issued or reserved for this quota season.`
+                          : "No active quota periods allocated at the moment."
+                        }
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
         </div>
       </div>
 

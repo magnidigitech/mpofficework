@@ -274,7 +274,7 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center p-0 md:p-4 bg-black/60 backdrop-blur-xs">
-      <div className="absolute inset-0" onClick={onClose} />
+      <div className="absolute inset-0" />
       
       <div className="relative bg-white w-full max-h-[90vh] md:max-h-[85vh] md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-bottom md:zoom-in-95 duration-200">
         {/* Mobile handle */}
@@ -312,109 +312,101 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
           )}
 
           <form id="schedule-modal-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">Event Title *</label>
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="e.g. Village Inspection Tour"
-                  {...register("title")}
-                  disabled={isPending}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
-                />
-                {errors.title && (
-                  <span className="text-red-500 text-xs mt-1 font-semibold">{errors.title.message}</span>
-                )}
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">Venue Location *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Town Hall, Guntur"
-                  {...register("venue")}
-                  disabled={isPending}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
-                />
-                {errors.venue && (
-                  <span className="text-red-500 text-xs mt-1 font-semibold">{errors.venue.message}</span>
-                )}
-              </div>
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1">Event Title *</label>
+              <input
+                type="text"
+                autoFocus
+                placeholder="e.g. Village Inspection Tour"
+                {...register("title")}
+                disabled={isPending}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
+              />
+              {errors.title && (
+                <span className="text-red-500 text-xs mt-1 font-semibold">{errors.title.message}</span>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">Starts At *</label>
-                <input 
-                  type="datetime-local" 
-                  {...register("startAt")} 
-                  disabled={isPending} 
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
-                />
-                {errors.startAt && (
-                  <span className="text-red-500 text-xs mt-1 font-semibold">{errors.startAt.message}</span>
-                )}
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">Ends At</label>
-                <input 
-                  type="datetime-local" 
-                  {...register("endAt")} 
-                  disabled={!startAtValue || isPending} 
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 disabled:bg-gray-50 disabled:text-gray-400"
-                />
-                <div className="flex gap-1.5 mt-2 flex-wrap">
-                  {([15, 30, 45, 60] as const).map((mins) => (
-                    <button
-                      key={mins}
-                      type="button"
-                      onClick={() => handleQuickDuration(mins)}
-                      disabled={!startAtValue || isPending}
-                      className="px-2.5 py-1 bg-gray-50 border border-gray-200 hover:bg-emerald-50 hover:border-emerald-250 hover:text-emerald-700 disabled:opacity-50 disabled:hover:bg-gray-50 disabled:hover:border-gray-200 disabled:hover:text-gray-600 rounded-full text-[10px] font-extrabold uppercase tracking-wider transition focus:outline-none cursor-pointer disabled:cursor-not-allowed"
-                    >
-                      +{mins}m
-                    </button>
-                  ))}
-                </div>
-                {errors.endAt && (
-                  <span className="text-red-500 text-xs mt-1 font-semibold">{errors.endAt.message}</span>
-                )}
-              </div>
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1">Venue Location *</label>
+              <input
+                type="text"
+                placeholder="e.g. Town Hall, Guntur"
+                {...register("venue")}
+                disabled={isPending}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
+              />
+              {errors.venue && (
+                <span className="text-red-500 text-xs mt-1 font-semibold">{errors.venue.message}</span>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">Visit Status *</label>
-                <select
-                  {...register("status")}
-                  disabled={isPending}
-                  className="h-10 border border-gray-200 rounded-lg px-2.5 text-sm bg-white focus:outline-none focus:border-emerald-700"
-                >
-                  <option value="DRAFT">Draft</option>
-                  <option value="CONFIRMED">Confirmed</option>
-                  <option value="TRAVELLING">Travelling</option>
-                  <option value="ARRIVED">Arrived</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="POSTPONED">Postponed</option>
-                  <option value="CANCELLED">Cancelled</option>
-                </select>
-              </div>
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1">Starts At *</label>
+              <input 
+                type="datetime-local" 
+                {...register("startAt")} 
+                disabled={isPending} 
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
+              />
+              {errors.startAt && (
+                <span className="text-red-500 text-xs mt-1 font-semibold">{errors.startAt.message}</span>
+              )}
+            </div>
 
-              <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">Priority *</label>
-                <select
-                  {...register("priority")}
-                  disabled={isPending}
-                  className="h-10 border border-gray-200 rounded-lg px-2.5 text-sm bg-white focus:outline-none focus:border-emerald-700"
-                >
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                </select>
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1">Ends At</label>
+              <input 
+                type="datetime-local" 
+                {...register("endAt")} 
+                disabled={!startAtValue || isPending} 
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 disabled:bg-gray-50 disabled:text-gray-400"
+              />
+              <div className="flex gap-1.5 mt-2 flex-wrap">
+                {[
+                  { mins: 15, label: "+15m" },
+                  { mins: 30, label: "+30m" },
+                  { mins: 45, label: "+45m" },
+                  { mins: 60, label: "+1h" },
+                  { mins: 75, label: "+1h 15m" },
+                  { mins: 90, label: "+1.5h" },
+                  { mins: 105, label: "+1h 45m" },
+                  { mins: 120, label: "+2h" },
+                  { mins: 135, label: "+2h 15m" },
+                  { mins: 150, label: "+2.5h" }
+                ].map(({ mins, label }) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => handleQuickDuration(mins)}
+                    disabled={!startAtValue || isPending}
+                    className="px-2.5 py-1 bg-gray-50 border border-gray-200 hover:bg-emerald-50 hover:border-emerald-250 hover:text-emerald-700 disabled:opacity-50 disabled:hover:bg-gray-50 disabled:hover:border-gray-200 disabled:hover:text-gray-600 rounded-full text-[10px] font-extrabold uppercase tracking-wider transition focus:outline-none cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
+              {errors.endAt && (
+                <span className="text-red-500 text-xs mt-1 font-semibold">{errors.endAt.message}</span>
+              )}
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1">Visit Status *</label>
+              <select
+                {...register("status")}
+                disabled={isPending}
+                className="h-10 border border-gray-200 rounded-lg px-2.5 text-sm bg-white focus:outline-none focus:border-emerald-700"
+              >
+                <option value="DRAFT">Draft</option>
+                <option value="CONFIRMED">Confirmed</option>
+                <option value="TRAVELLING">Travelling</option>
+                <option value="ARRIVED">Arrived</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="POSTPONED">Postponed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
             </div>
 
             <div className="flex flex-col">
@@ -426,41 +418,6 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
                 disabled={isPending}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
               />
-            </div>
-
-            <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Description (Optional)</label>
-              <textarea
-                placeholder="Details about meeting purpose..."
-                rows={2}
-                {...register("description")}
-                disabled={isPending}
-                className="w-full border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">Required Documents</label>
-                <textarea
-                  placeholder="Required documents list..."
-                  rows={2}
-                  {...register("requiredDocuments")}
-                  disabled={isPending}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
-                />
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-xs font-bold text-gray-700 mb-1">Internal Instructions</label>
-                <textarea
-                  placeholder="Confidential notes for staff..."
-                  rows={2}
-                  {...register("internalInstructions")}
-                  disabled={isPending}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
-                />
-              </div>
             </div>
 
             {/* Staff list - Commented out for future use
