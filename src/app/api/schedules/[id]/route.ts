@@ -180,7 +180,7 @@ export async function PATCH(
     // Validate times if provided
     const start = data.startAt ? new Date(data.startAt) : schedule.startAt;
     const end = data.endAt ? new Date(data.endAt) : schedule.endAt;
-    if (end <= start) {
+    if (end < start) {
       return NextResponse.json(
         { error: "End time must be after the start time" },
         { status: 400 }
