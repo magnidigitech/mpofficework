@@ -5,8 +5,8 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as zod from "zod";
 import { 
-  X, Plus, Trash, Calendar, Users, AlertCircle, CheckCircle2, 
-  MapPin, Phone, Clock, Loader2
+  X, Plus, Trash, Calendar, AlertCircle, CheckCircle2, 
+  Clock, Loader2, FileText, Tag, User, Phone, MapPin, Info
 } from "lucide-react";
 
 const contactSchema = zod.object({
@@ -276,7 +276,7 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center p-0 md:p-4 bg-black/60 backdrop-blur-xs">
       <div className="absolute inset-0" />
       
-      <div className="relative bg-white w-full max-h-[90vh] md:max-h-[85vh] md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-bottom md:zoom-in-95 duration-200">
+      <div className="relative bg-white w-full max-h-[92vh] md:max-h-[88vh] md:max-w-2xl rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-bottom md:zoom-in-95 duration-200">
         {/* Mobile handle */}
         <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto my-3 md:hidden shrink-0" />
         
@@ -312,15 +312,19 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
           )}
 
           <form id="schedule-modal-form" onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+
+            {/* ── BASIC INFO ── */}
             <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Event Title *</label>
+              <label className="text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-gray-400" /> Event Title *
+              </label>
               <input
                 type="text"
                 autoFocus
                 placeholder="e.g. Village Inspection Tour"
                 {...register("title")}
                 disabled={isPending}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white"
               />
               {errors.title && (
                 <span className="text-red-500 text-xs mt-1 font-semibold">{errors.title.message}</span>
@@ -328,26 +332,76 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
             </div>
 
             <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Venue Location *</label>
+              <label className="text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-gray-400" /> Description
+              </label>
+              <textarea
+                placeholder="Brief description of the visit (optional)"
+                {...register("description")}
+                disabled={isPending}
+                rows={2}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white resize-none disabled:bg-gray-50 disabled:text-gray-400"
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-gray-400" /> Venue Location *
+              </label>
               <input
                 type="text"
                 placeholder="e.g. Town Hall, Guntur"
                 {...register("venue")}
                 disabled={isPending}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white"
               />
               {errors.venue && (
                 <span className="text-red-500 text-xs mt-1 font-semibold">{errors.venue.message}</span>
               )}
             </div>
 
+            {/* ── CATEGORY & PRIORITY ── */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col">
+                <label className="text-xs font-bold text-gray-700 mb-1">Category</label>
+                <select
+                  {...register("category")}
+                  disabled={isPending}
+                  className="h-10 border border-gray-200 rounded-lg px-2.5 text-sm bg-white focus:outline-none focus:border-emerald-700"
+                >
+                  <option value="Tour">Tour</option>
+                  <option value="Meeting">Meeting</option>
+                  <option value="Event">Event</option>
+                  <option value="Inspection">Inspection</option>
+                  <option value="Inauguration">Inauguration</option>
+                  <option value="Press Conference">Press Conference</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs font-bold text-gray-700 mb-1">Priority</label>
+                <select
+                  {...register("priority")}
+                  disabled={isPending}
+                  className="h-10 border border-gray-200 rounded-lg px-2.5 text-sm bg-white focus:outline-none focus:border-emerald-700"
+                >
+                  <option value="HIGH">🔴 High</option>
+                  <option value="MEDIUM">🟡 Medium</option>
+                  <option value="LOW">🟢 Low</option>
+                </select>
+              </div>
+            </div>
+
+            {/* ── TIME ── */}
             <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Starts At *</label>
+              <label className="text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-gray-400" /> Starts At *
+              </label>
               <input 
                 type="datetime-local" 
                 {...register("startAt")} 
                 disabled={isPending} 
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white"
               />
               {errors.startAt && (
                 <span className="text-red-500 text-xs mt-1 font-semibold">{errors.startAt.message}</span>
@@ -355,12 +409,14 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
             </div>
 
             <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Ends At</label>
+              <label className="text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-gray-400" /> Ends At
+              </label>
               <input 
                 type="datetime-local" 
                 {...register("endAt")} 
                 disabled={!startAtValue || isPending} 
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 disabled:bg-gray-50 disabled:text-gray-400"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white disabled:bg-gray-50 disabled:text-gray-400"
               />
               <div className="flex gap-1.5 mt-2 flex-wrap">
                 {[
@@ -391,6 +447,7 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
               )}
             </div>
 
+            {/* ── STATUS ── */}
             <div className="flex flex-col">
               <label className="text-xs font-bold text-gray-700 mb-1">Visit Status *</label>
               <select
@@ -409,52 +466,53 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
               </select>
             </div>
 
+            {/* ── MAPS LINK ── */}
             <div className="flex flex-col">
-              <label className="text-xs font-bold text-gray-700 mb-1">Google Maps URL</label>
+              <label className="text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-gray-400" /> Google Maps URL
+              </label>
               <input
                 type="url"
-                placeholder="Maps Link"
+                placeholder="https://maps.google.com/..."
                 {...register("googleMapsLink")}
                 disabled={isPending}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white"
               />
             </div>
 
-            {/* Staff list - Commented out for future use
-            {staffMembers.length > 0 && (
-              <div className="flex flex-col pt-2">
-                <label className="text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-gray-400" /> 
-                  <span>Assign Staff Coordinators</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border border-gray-200 rounded-xl p-3 max-h-36 overflow-y-auto bg-gray-50/50">
-                  {staffMembers.map((staff) => (
-                    <label key={staff.id} className="flex items-center gap-2.5 text-xs text-gray-700 cursor-pointer p-1 hover:bg-white rounded transition">
-                      <input
-                        type="checkbox"
-                        value={staff.id}
-                        checked={(watch("assignedStaffIds") || []).includes(staff.id)}
-                        onChange={(e) => {
-                          const currentIds = watch("assignedStaffIds") || [];
-                          if (e.target.checked) {
-                            setValue("assignedStaffIds", [...currentIds, staff.id]);
-                          } else {
-                            setValue("assignedStaffIds", currentIds.filter(id => id !== staff.id));
-                          }
-                        }}
-                        disabled={isPending}
-                        className="w-4 h-4 rounded border-gray-300 text-emerald-700 focus:ring-emerald-600 accent-emerald-700"
-                      />
-                      <span className="truncate">{staff.name} ({staff.email})</span>
-                    </label>
-                  ))}
+            {/* ── ORGANIZER ── */}
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5" /> Organizer / Point of Contact
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Organizer Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. District Collector"
+                    {...register("organizerName")}
+                    disabled={isPending}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-gray-400" /> Organizer Phone
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="e.g. +91 9876543210"
+                    {...register("organizerPhone")}
+                    disabled={isPending}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white"
+                  />
                 </div>
               </div>
-            )}
-            */}
+            </div>
 
-            {/* Contacts Array */}
-            <div className="pt-4 border-t border-gray-150">
+            {/* ── CONTACTS ARRAY ── */}
+            <div className="pt-4 border-t border-gray-100">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Contact Details</h3>
                 <button
@@ -470,40 +528,75 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
 
               <div className="space-y-3">
                 {contactFields.map((field, idx) => (
-                  <div key={field.id} className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex flex-col sm:flex-row gap-3 relative items-start">
-                    <div className="flex-1 w-full flex flex-col">
+                  <div key={field.id} className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
                         type="text"
                         placeholder="Contact Name"
                         {...register(`contacts.${idx}.name` as const)}
                         disabled={isPending}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-emerald-700"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-emerald-700 bg-white"
                       />
-                    </div>
-                    <div className="flex-1 w-full flex flex-col">
                       <input
                         type="text"
                         placeholder="Mobile Number"
                         {...register(`contacts.${idx}.phone` as const)}
                         disabled={isPending}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-emerald-700"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-emerald-700 bg-white"
                       />
                     </div>
-                    {contactFields.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeContact(idx)}
-                        className="p-2 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition shrink-0 self-center sm:self-auto"
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Designation (e.g. MLA, Collector, Party Leader)"
+                        {...register(`contacts.${idx}.designation` as const)}
                         disabled={isPending}
-                      >
-                        <Trash className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-emerald-700 bg-white"
+                      />
+                      {contactFields.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeContact(idx)}
+                          className="p-2 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition shrink-0"
+                          disabled={isPending}
+                        >
+                          <Trash className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
+            {/* ── INTERNAL NOTES ── */}
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5" /> Internal Notes
+              </h3>
+              <div className="space-y-3">
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Internal Instructions</label>
+                  <textarea
+                    placeholder="Staff briefing, logistics, protocol notes..."
+                    {...register("internalInstructions")}
+                    disabled={isPending}
+                    rows={2}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white resize-none disabled:bg-gray-50"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-gray-700 mb-1">Required Documents</label>
+                  <textarea
+                    placeholder="List documents needed for this visit..."
+                    {...register("requiredDocuments")}
+                    disabled={isPending}
+                    rows={2}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-emerald-700 bg-white resize-none disabled:bg-gray-50"
+                  />
+                </div>
+              </div>
+            </div>
 
           </form>
         </div>
