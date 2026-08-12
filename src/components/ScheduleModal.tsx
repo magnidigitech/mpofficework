@@ -223,29 +223,35 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
               {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
             </div>
 
-            {/* Venue + Maps URL inline */}
+            {/* Venue — full width */}
             <div>
               <label className={lbl}>
                 <MapPin className="w-3 h-3 inline mr-1 text-gray-400" />
                 Venue <span className="text-red-500">*</span>
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. Town Hall, Guntur"
-                  {...register("venue")}
-                  disabled={isPending}
-                  className={`${inp} flex-1`}
-                />
-                <input
-                  type="url"
-                  placeholder="Maps URL"
-                  {...register("googleMapsLink")}
-                  disabled={isPending}
-                  className={`${inp} w-32 shrink-0`}
-                />
-              </div>
+              <input
+                type="text"
+                placeholder="e.g. Town Hall, Guntur"
+                {...register("venue")}
+                disabled={isPending}
+                className={inp}
+              />
               {errors.venue && <p className="text-red-500 text-xs mt-1">{errors.venue.message}</p>}
+            </div>
+
+            {/* Google Maps URL — full width, optional */}
+            <div>
+              <label className={lbl}>
+                <MapPin className="w-3 h-3 inline mr-1 text-gray-400" />
+                Google Maps URL <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="url"
+                placeholder="https://maps.google.com/..."
+                {...register("googleMapsLink")}
+                disabled={isPending}
+                className={inp}
+              />
             </div>
 
             {/* Priority — single full-width line */}
@@ -337,22 +343,21 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
 
               <div className="space-y-2.5">
                 {contactFields.map((field, idx) => (
-                  <div key={field.id} className="bg-gray-50/80 border border-gray-200 rounded-xl p-3">
-                    {/* Name + Phone + Remove */}
+                  <div key={field.id} className="bg-gray-50/80 border border-gray-200 rounded-xl p-3 space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Contact Name"
+                      {...register(`contacts.${idx}.name` as const)}
+                      disabled={isPending}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 bg-white focus:outline-none focus:border-emerald-500 transition placeholder:text-gray-400"
+                    />
                     <div className="flex gap-2">
                       <input
-                        type="text"
-                        placeholder="Name"
-                        {...register(`contacts.${idx}.name` as const)}
-                        disabled={isPending}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 bg-white focus:outline-none focus:border-emerald-500 transition placeholder:text-gray-400"
-                      />
-                      <input
                         type="tel"
-                        placeholder="Phone"
+                        placeholder="Phone Number"
                         {...register(`contacts.${idx}.phone` as const)}
                         disabled={isPending}
-                        className="w-36 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 bg-white focus:outline-none focus:border-emerald-500 transition placeholder:text-gray-400"
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 bg-white focus:outline-none focus:border-emerald-500 transition placeholder:text-gray-400"
                       />
                       {contactFields.length > 1 && (
                         <button
