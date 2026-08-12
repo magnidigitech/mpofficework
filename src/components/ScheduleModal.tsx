@@ -223,73 +223,68 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
               {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
             </div>
 
-            {/* Venue */}
+            {/* Venue + Maps URL inline */}
             <div>
               <label className={lbl}>
                 <MapPin className="w-3 h-3 inline mr-1 text-gray-400" />
                 Venue <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                placeholder="e.g. Town Hall, Guntur"
-                {...register("venue")}
-                disabled={isPending}
-                className={inp}
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. Town Hall, Guntur"
+                  {...register("venue")}
+                  disabled={isPending}
+                  className={`${inp} flex-1`}
+                />
+                <input
+                  type="url"
+                  placeholder="Maps URL"
+                  {...register("googleMapsLink")}
+                  disabled={isPending}
+                  className={`${inp} w-32 shrink-0`}
+                />
+              </div>
               {errors.venue && <p className="text-red-500 text-xs mt-1">{errors.venue.message}</p>}
             </div>
 
-            {/* Category + Priority */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={lbl}>Category</label>
-                <select {...register("category")} disabled={isPending} className={sel}>
-                  <option value="Tour">Tour</option>
-                  <option value="Meeting">Meeting</option>
-                  <option value="Event">Event</option>
-                  <option value="Inspection">Inspection</option>
-                  <option value="Inauguration">Inauguration</option>
-                  <option value="Press Conference">Press Conference</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className={lbl}>Priority</label>
-                <select {...register("priority")} disabled={isPending} className={sel}>
-                  <option value="HIGH">🔴 High</option>
-                  <option value="MEDIUM">🟡 Medium</option>
-                  <option value="LOW">🟢 Low</option>
-                </select>
-              </div>
+            {/* Priority — single full-width line */}
+            <div>
+              <label className={lbl}>Priority</label>
+              <select {...register("priority")} disabled={isPending} className={sel}>
+                <option value="HIGH">🔴 High</option>
+                <option value="MEDIUM">🟡 Medium</option>
+                <option value="LOW">🟢 Low</option>
+              </select>
             </div>
 
-            {/* Start / End */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={lbl}>
-                  <Clock className="w-3 h-3 inline mr-1 text-gray-400" />
-                  Starts At <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="datetime-local"
-                  {...register("startAt")}
-                  disabled={isPending}
-                  className={inp}
-                />
-                {errors.startAt && <p className="text-red-500 text-xs mt-1">{errors.startAt.message}</p>}
-              </div>
-              <div>
-                <label className={lbl}>
-                  <Clock className="w-3 h-3 inline mr-1 text-gray-400" />
-                  Ends At
-                </label>
-                <input
-                  type="datetime-local"
-                  {...register("endAt")}
-                  disabled={!startAtValue || isPending}
-                  className={`${inp} disabled:bg-gray-50 disabled:text-gray-400`}
-                />
-              </div>
+            {/* Starts At — full width */}
+            <div>
+              <label className={lbl}>
+                <Clock className="w-3 h-3 inline mr-1 text-gray-400" />
+                Starts At <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="datetime-local"
+                {...register("startAt")}
+                disabled={isPending}
+                className={inp}
+              />
+              {errors.startAt && <p className="text-red-500 text-xs mt-1">{errors.startAt.message}</p>}
+            </div>
+
+            {/* Ends At — full width */}
+            <div>
+              <label className={lbl}>
+                <Clock className="w-3 h-3 inline mr-1 text-gray-400" />
+                Ends At
+              </label>
+              <input
+                type="datetime-local"
+                {...register("endAt")}
+                disabled={!startAtValue || isPending}
+                className={`${inp} disabled:bg-gray-50 disabled:text-gray-400`}
+              />
             </div>
 
             {/* Quick duration chips */}
@@ -310,7 +305,7 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
               ))}
             </div>
 
-            {/* Status */}
+
             <div>
               <label className={lbl}>Visit Status <span className="text-red-500">*</span></label>
               <select {...register("status")} disabled={isPending} className={sel}>
@@ -325,20 +320,6 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
               </select>
             </div>
 
-            {/* Google Maps */}
-            <div>
-              <label className={lbl}>
-                <MapPin className="w-3 h-3 inline mr-1 text-gray-400" />
-                Google Maps URL
-              </label>
-              <input
-                type="url"
-                placeholder="https://maps.google.com/..."
-                {...register("googleMapsLink")}
-                disabled={isPending}
-                className={inp}
-              />
-            </div>
 
             {/* Contacts */}
             <div className="pt-1">
@@ -356,32 +337,22 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
 
               <div className="space-y-2.5">
                 {contactFields.map((field, idx) => (
-                  <div key={field.id} className="bg-gray-50/80 border border-gray-200 rounded-xl p-3 space-y-2">
-                    {/* Row 1: Name + Phone */}
-                    <div className="grid grid-cols-2 gap-2">
+                  <div key={field.id} className="bg-gray-50/80 border border-gray-200 rounded-xl p-3">
+                    {/* Name + Phone + Remove */}
+                    <div className="flex gap-2">
                       <input
                         type="text"
                         placeholder="Name"
                         {...register(`contacts.${idx}.name` as const)}
                         disabled={isPending}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 bg-white focus:outline-none focus:border-emerald-500 transition placeholder:text-gray-400"
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 bg-white focus:outline-none focus:border-emerald-500 transition placeholder:text-gray-400"
                       />
                       <input
                         type="tel"
                         placeholder="Phone"
                         {...register(`contacts.${idx}.phone` as const)}
                         disabled={isPending}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 bg-white focus:outline-none focus:border-emerald-500 transition placeholder:text-gray-400"
-                      />
-                    </div>
-                    {/* Row 2: Designation + Remove */}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Designation (e.g. MLA, DRO, Collector)"
-                        {...register(`contacts.${idx}.designation` as const)}
-                        disabled={isPending}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 bg-white focus:outline-none focus:border-emerald-500 transition placeholder:text-gray-400"
+                        className="w-36 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 bg-white focus:outline-none focus:border-emerald-500 transition placeholder:text-gray-400"
                       />
                       {contactFields.length > 1 && (
                         <button
