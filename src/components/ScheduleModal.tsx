@@ -254,15 +254,6 @@ export function ScheduleModal({ isOpen, onClose, onSave, editId }: ScheduleModal
               />
             </div>
 
-            {/* Priority — single full-width line */}
-            <div>
-              <label className={lbl}>Priority</label>
-              <select {...register("priority")} disabled={isPending} className={sel}>
-                <option value="HIGH">🔴 High</option>
-                <option value="MEDIUM">🟡 Medium</option>
-                <option value="LOW">🟢 Low</option>
-              </select>
-            </div>
 
             {/* Starts At — full width */}
             <div>
