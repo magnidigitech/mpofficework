@@ -1309,41 +1309,39 @@ function SchedulePageContent() {
                           </p>
                         )}
 
-                        {/* Contacts Display Section */}
+                        {/* Contacts — clean inline list */}
                         {s.contacts && s.contacts.length > 0 && (
-                          <div className="mt-4 pt-4 border-t border-gray-100 space-y-2.5">
-                            <span className="text-[10px] text-gray-400 font-extrabold uppercase tracking-wider block">Visit Contacts / Coordinators</span>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div className="mt-3.5 pt-3.5 border-t border-gray-100">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2 block">Contacts</span>
+                            <div className="space-y-1.5">
                               {s.contacts.map((contact) => (
-                                <div key={contact.id} className="flex justify-between items-center bg-slate-50/50 border border-gray-150 rounded-xl p-3 hover:bg-slate-50 transition shadow-2xs">
-                                  <div className="min-w-0 flex-1 pr-2">
-                                    <p className="text-xs font-bold text-gray-800 truncate">{contact.name}</p>
+                                <div key={contact.id} className="flex items-center justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <span className="text-xs font-semibold text-gray-800">{contact.name}</span>
                                     {contact.designation && (
-                                      <p className="text-[10px] text-gray-500 truncate mt-0.5 font-medium">{contact.designation}</p>
+                                      <span className="text-[10px] text-gray-400 ml-1.5 font-medium">· {contact.designation}</span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    {contact.phone && (
-                                      <>
-                                        <a
-                                          href={`tel:${contact.phone}`}
-                                          className="p-2 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-100 hover:border-sky-200 rounded-xl transition shadow-3xs"
-                                          title={`Call ${contact.name}`}
-                                        >
-                                          <Phone className="w-3.5 h-3.5" />
-                                        </a>
-                                        <a
-                                          href={`https://wa.me/${contact.phone.replace(/[^0-9]/g, "")}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100 hover:border-emerald-200 rounded-xl transition shadow-3xs"
-                                          title={`WhatsApp ${contact.name}`}
-                                        >
-                                          <WhatsAppIcon className="w-3.5 h-3.5" />
-                                        </a>
-                                      </>
-                                    )}
-                                  </div>
+                                  {contact.phone && (
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <a
+                                        href={`tel:${contact.phone}`}
+                                        className="p-1.5 text-gray-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition"
+                                        title={`Call ${contact.name}`}
+                                      >
+                                        <Phone className="w-3.5 h-3.5" />
+                                      </a>
+                                      <a
+                                        href={`https://wa.me/${contact.phone.replace(/[^0-9]/g, "")}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                                        title={`WhatsApp ${contact.name}`}
+                                      >
+                                        <WhatsAppIcon className="w-3.5 h-3.5" />
+                                      </a>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -1466,38 +1464,43 @@ function SchedulePageContent() {
       return width;
     };
 
+    // Track velocity for spring-like snap behaviour
+    const lastX = useRef(0);
+    const lastT = useRef(0);
+
     const handleTouchStart = (e: React.TouchEvent) => {
-      startX.current = e.touches[0].clientX;
-      startY.current = e.touches[0].clientY;
-      currentX.current = startX.current;
+      const touch = e.touches[0];
+      startX.current = touch.clientX;
+      startY.current = touch.clientY;
+      currentX.current = touch.clientX;
+      lastX.current = touch.clientX;
+      lastT.current = performance.now();
       setIsSwiping(true);
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
       if (!isSwiping) return;
-      const diffX = e.touches[0].clientX - startX.current;
-      const diffY = e.touches[0].clientY - startY.current;
+      const touch = e.touches[0];
+      const diffX = touch.clientX - startX.current;
+      const diffY = touch.clientY - startY.current;
 
-      // If swiping horizontally more than vertically
-      if (Math.abs(diffX) > Math.abs(diffY)) {
-        if (e.cancelable) {
-          e.preventDefault();
-        }
+      // Only handle if horizontal intent is dominant
+      if (Math.abs(diffX) > Math.abs(diffY) + 4) {
+        if (e.cancelable) e.preventDefault();
+        lastX.current = touch.clientX;
+        lastT.current = performance.now();
 
         const maxSwipe = getMaxSwipeWidth();
-        let offset = diffX;
-        if (isSwiped) {
-          offset = -maxSwipe + diffX;
-        }
+        let offset = isSwiped ? -maxSwipe + diffX : diffX;
 
-        // Limit swiping direction: can only swipe left (negative values)
-        if (offset > 0) {
-          offset = offset * 0.1; // resistance when dragging right
+        // Rubber-band resistance at boundaries
+        if (offset > 4) {
+          offset = 4 + (offset - 4) * 0.08;
         } else if (offset < -maxSwipe) {
-          const excess = offset + maxSwipe;
-          offset = -maxSwipe + excess * 0.2; // resistance when dragging past max
+          const over = offset + maxSwipe;
+          offset = -maxSwipe + over * 0.12;
         }
-
+        currentX.current = touch.clientX;
         setSwipeOffset(offset);
       }
     };
@@ -1505,13 +1508,23 @@ function SchedulePageContent() {
     const handleTouchEnd = () => {
       setIsSwiping(false);
       const maxSwipe = getMaxSwipeWidth();
-      const threshold = -maxSwipe / 2;
-      if (swipeOffset < threshold) {
-        setSwipeOffset(-maxSwipe);
-        setIsSwiped(true);
+      if (maxSwipe === 0) return;
+
+      // Velocity in px/ms
+      const dt = performance.now() - lastT.current;
+      const velocity = dt > 0 ? (currentX.current - lastX.current) / dt : 0;
+
+      const SNAP_THRESHOLD = maxSwipe * 0.35;
+      // Fast swipe left → open; fast swipe right → close
+      const shouldOpen = velocity < -0.3 || (swipeOffset < -SNAP_THRESHOLD && velocity >= -0.3);
+      const shouldClose = velocity > 0.3 || (swipeOffset > -SNAP_THRESHOLD && !isSwiped);
+
+      if (isSwiped) {
+        if (shouldClose) { setSwipeOffset(0); setIsSwiped(false); }
+        else { setSwipeOffset(-maxSwipe); }
       } else {
-        setSwipeOffset(0);
-        setIsSwiped(false);
+        if (shouldOpen) { setSwipeOffset(-maxSwipe); setIsSwiped(true); }
+        else { setSwipeOffset(0); }
       }
     };
 
@@ -1527,7 +1540,7 @@ function SchedulePageContent() {
     const maxSwipe = getMaxSwipeWidth();
 
     return (
-      <div className="relative overflow-hidden w-full rounded-xl bg-slate-100 flex items-stretch border border-gray-200 select-none shadow-xs touch-pan-y">
+      <div className="relative overflow-hidden w-full rounded-xl bg-slate-100 flex items-stretch border border-gray-200 select-none shadow-xs" style={{ touchAction: "pan-y" }}>
         {/* Background Swipe Actions Layer */}
         {maxSwipe > 0 && (
           <div className="absolute right-0 top-0 bottom-0 flex items-stretch z-0">
@@ -1605,7 +1618,10 @@ function SchedulePageContent() {
           onClick={handleCardClick}
           style={{
             transform: `translateX(${swipeOffset}px)`,
-            transition: isSwiping ? "none" : "transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+            transition: isSwiping
+              ? "none"
+              : "transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            willChange: "transform",
           }}
           className="bg-white p-4 relative z-10 w-full flex flex-col justify-between rounded-xl"
         >
