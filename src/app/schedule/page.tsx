@@ -7,7 +7,7 @@ import { db, type OfflineSchedule, type OfflineContact } from "@/lib/db";
 import { authClient } from "@/lib/auth-client";
 import {
   Calendar, MapPin, Phone, CheckCircle2, Circle, RefreshCw,
-  AlertTriangle, Navigation as MapIcon, Shield, Layers, BookOpen, AlertCircle, Trash, Edit3, Clock, Share2, X
+  AlertTriangle, Navigation as MapIcon, Shield, Layers, BookOpen, AlertCircle, Trash, Edit3, Clock, Share2, X, ChevronLeft, ChevronRight, Plus
 } from "lucide-react";
 import Link from "next/link";
 import { ScheduleModal } from "@/components/ScheduleModal";
@@ -816,7 +816,7 @@ function SchedulePageContent() {
           const busyUntil = rowBusyUntil.get(assignedRow);
           if (!busyUntil || busyUntil < startDay) {
             rowAssignments.set(s.id, assignedRow);
-            
+
             const endDay = new Date(sEnd);
             endDay.setHours(23, 59, 59, 999);
             rowBusyUntil.set(assignedRow, endDay);
@@ -895,29 +895,44 @@ function SchedulePageContent() {
     const currentDaySchedules = getSchedulesForDate(calendarDate);
 
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs space-y-5 font-sans">
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 md:p-6 shadow-2xs space-y-6 font-sans">
         {/* Calendar Nav & Sub-view buttons */}
-        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 pb-4 border-b border-gray-100">
-          <div className="flex items-center w-full md:w-auto gap-3">
-            <div className="flex items-center justify-between w-full md:w-auto gap-2">
-              <button onClick={handlePrev} className="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition text-gray-700 font-bold text-xs cursor-pointer shrink-0">
-                &larr; Prev
+        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200/80 p-1 rounded-xl shadow-2xs">
+              <button
+                onClick={handlePrev}
+                className="p-1.5 hover:bg-white hover:shadow-2xs rounded-lg transition text-slate-700 font-bold text-xs cursor-pointer"
+                title="Previous"
+              >
+                <ChevronLeft className="w-4 h-4" />
               </button>
-              <h2 className="text-sm font-extrabold text-gray-900 font-sans text-center flex-1 md:flex-none md:min-w-[120px] px-2 truncate">
-                {getCalendarHeaderTitle()}
-              </h2>
-              <button onClick={handleNext} className="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition text-gray-700 font-bold text-xs cursor-pointer shrink-0">
-                Next &rarr;
+              <button
+                onClick={handleToday}
+                className="px-2.5 py-1 bg-white border border-slate-200/60 rounded-md text-[11px] font-extrabold text-slate-800 hover:bg-slate-100 transition cursor-pointer shadow-2xs"
+              >
+                Today
+              </button>
+              <button
+                onClick={handleNext}
+                className="p-1.5 hover:bg-white hover:shadow-2xs rounded-lg transition text-slate-700 font-bold text-xs cursor-pointer"
+                title="Next"
+              >
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
+
+            <h2 className="text-sm md:text-base font-extrabold text-slate-900 tracking-tight">
+              {getCalendarHeaderTitle()}
+            </h2>
           </div>
 
-          <div className="bg-gray-100 p-0.5 rounded-lg border border-gray-200 flex items-center justify-between md:justify-start shadow-xs">
+          <div className="bg-slate-100/80 p-1 rounded-xl border border-slate-200/80 flex items-center justify-between md:justify-start shadow-2xs">
             {(["month", "week", "day"] as const).map((view) => (
               <button
                 key={view}
                 onClick={() => setCalendarView(view)}
-                className={`flex-1 md:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition uppercase tracking-wider cursor-pointer text-center ${calendarView === view ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
+                className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all uppercase tracking-wider cursor-pointer text-center ${calendarView === view ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
                   }`}
               >
                 {view}
@@ -932,7 +947,7 @@ function SchedulePageContent() {
             {/* Header: Weekdays (Sun - Sat) */}
             <div className="grid grid-cols-7 gap-1.5">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div key={day} className="text-center font-bold text-gray-400 text-[10px] uppercase py-1">
+                <div key={day} className="text-center font-bold text-slate-400 text-[10px] uppercase py-1">
                   {day}
                 </div>
               ))}
@@ -968,10 +983,48 @@ function SchedulePageContent() {
                           setCalendarDate(date);
                           setCalendarView("day");
                         }}
-                        className={`min-h-[60px] md:min-h-[85px] p-1.5 md:p-2 border border-gray-100 rounded-xl flex flex-col justify-between hover:bg-amber-50/20 transition cursor-pointer relative overflow-visible ${isCurrentMonth ? "bg-white" : "bg-gray-50/40 text-gray-300"
-                          } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
+                        className={`group relative min-h-[60px] md:min-h-[85px] p-1.5 md:p-2 border border-slate-100 rounded-xl flex flex-col justify-between hover:bg-amber-50/30 hover:border-amber-300/80 transition cursor-pointer overflow-visible ${isCurrentMonth ? "bg-white" : "bg-slate-50/40 text-slate-300"
+                          } ${isToday ? "ring-2 ring-amber-500 ring-inset" : ""}`}
                       >
-                        <span className={`text-[10px] font-bold self-end ${isToday ? "text-primary font-black" : "text-gray-600"}`}>
+                        {/* Hover Tooltip Preview of Events (Clean Minimal Light) */}
+                        {daySchedules.length > 0 && (
+                          <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-64 bg-white text-slate-900 p-3 rounded-2xl shadow-xl border border-slate-200/90 z-50 hidden md:block">
+                            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                              <span className="text-[11px] font-extrabold text-slate-900">
+                                {date.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
+                              </span>
+                              <span className="text-[9px] font-black uppercase bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200/60">
+                                {daySchedules.length} {daySchedules.length === 1 ? "Event" : "Events"}
+                              </span>
+                            </div>
+                            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                              {daySchedules.map((s) => (
+                                <div key={s.id} className="p-2 rounded-xl bg-slate-50 border border-slate-200/60 text-left space-y-1">
+                                  <div className="flex items-center justify-between gap-1">
+                                    <span className="text-[9px] font-mono font-bold text-amber-800 bg-amber-100/60 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                      <Clock className="w-3 h-3 text-amber-600" />
+                                      {new Date(s.startAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
+                                    </span>
+                                    <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700">
+                                      {s.status.replace("_", " ")}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs font-bold text-slate-900 line-clamp-1">{s.title}</p>
+                                  {s.venue && (
+                                    <p className="text-[10px] text-slate-500 truncate flex items-center gap-1 font-medium">
+                                      <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                                      <span>{s.venue}</span>
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {/* Pointer triangle */}
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-white" />
+                          </div>
+                        )}
+
+                        <span className={`text-[10px] font-bold self-end ${isToday ? "text-amber-600 font-black" : "text-slate-600"}`}>
                           {date.getDate()}
                         </span>
                         <div className="flex-1 flex flex-col gap-0.5 mt-1 overflow-visible">
@@ -986,64 +1039,24 @@ function SchedulePageContent() {
                               const isEnd = getLocalDateStr(date) === getLocalDateStr(new Date(s.endAt || s.startAt));
                               const isMultiDay = s.endAt && (getLocalDateStr(new Date(s.startAt)) !== getLocalDateStr(new Date(s.endAt)));
 
-                              let customStyle: React.CSSProperties = {};
-                              let borderLeftClass = "";
-
-                              if (s.priority === "HIGH") {
-                                borderLeftClass = "border-l-red-500";
-                              } else if (s.priority === "LOW") {
-                                borderLeftClass = "border-l-gray-400";
-                              } else {
-                                borderLeftClass = "border-l-amber-500";
-                              }
+                              let borderLeftClass = "border-l-amber-500";
 
                               if (isMultiDay) {
-                                const gap = 6;  // grid gap is 6px (gap-1.5)
-                                const pad = 8;  // md:p-2 is 8px
-                                const offset = gap + pad; // 14px
-
-                                if (isStart) {
-                                  customStyle = {
-                                    marginRight: `-${offset}px`,
-                                    borderRightWidth: 0,
-                                    borderTopRightRadius: 0,
-                                    borderBottomRightRadius: 0,
-                                    position: "relative",
-                                    zIndex: 5,
-                                  };
-                                } else if (isEnd) {
-                                  customStyle = {
-                                    marginLeft: `-${pad}px`,
-                                    borderLeftWidth: 0,
-                                    borderTopLeftRadius: 0,
-                                    borderBottomLeftRadius: 0,
-                                    position: "relative",
-                                    zIndex: 5,
-                                  };
-                                } else {
-                                  customStyle = {
-                                    marginLeft: `-${pad}px`,
-                                    marginRight: `-${offset}px`,
-                                    borderLeftWidth: 0,
-                                    borderRightWidth: 0,
-                                    borderRadius: 0,
-                                    position: "relative",
-                                    zIndex: 5,
-                                  };
-                                }
+                                return (
+                                  <div
+                                    key={s.id}
+                                    className={`h-4 border-y border-amber-200 text-[9px] font-bold flex items-center px-1 text-amber-900 overflow-hidden leading-none z-15 select-none bg-amber-100/90 ${isStart ? "rounded-l border-l-2 border-l-amber-600 pl-1.5" : "border-l-0 -ml-[9px] w-[calc(100%+18px)]"
+                                      } ${isEnd ? "rounded-r border-r border-r-amber-300 pr-1.5" : "border-r-0 -mr-[9px] w-[calc(100%+18px)]"}`}
+                                  >
+                                    <span className="truncate">{s.title}</span>
+                                  </div>
+                                );
                               }
 
                               return (
                                 <span
                                   key={s.id}
-                                  style={customStyle}
-                                  className={`text-[8px] px-1 py-0.5 rounded truncate font-bold block leading-tight border ${s.priority === "HIGH"
-                                    ? "bg-red-50 text-red-750 border-red-150"
-                                    : s.priority === "LOW"
-                                      ? "bg-gray-50 text-gray-500 border-gray-150"
-                                      : "bg-amber-50 text-amber-850 border-amber-150"
-                                    } ${isMultiDay && isStart ? `border-l-[3px] ${borderLeftClass}` : ""}`}
-                                  title={s.title}
+                                  className={`text-[9px] px-1 py-0.5 rounded truncate font-bold block leading-tight border border-slate-200/80 bg-amber-50/80 text-amber-900 ${borderLeftClass}`}
                                 >
                                   {isStart ? (
                                     <>
@@ -1056,22 +1069,17 @@ function SchedulePageContent() {
                               );
                             })}
                           </div>
-                          
+
                           {/* Mobile: Show dots */}
                           <div className="flex md:hidden justify-center items-center gap-0.5 flex-wrap mt-0.5">
                             {daySchedules.slice(0, 3).map((s) => (
                               <span
                                 key={s.id}
-                                className={`w-1.5 h-1.5 rounded-full ${s.priority === "HIGH"
-                                  ? "bg-red-500"
-                                  : s.priority === "LOW"
-                                    ? "bg-gray-400"
-                                    : "bg-amber-500"
-                                  }`}
+                                className="w-1.5 h-1.5 rounded-full bg-amber-500"
                               />
                             ))}
                             {daySchedules.length > 3 && (
-                              <span className="text-[8px] text-gray-400 font-extrabold leading-none">+</span>
+                              <span className="text-[8px] text-slate-400 font-extrabold leading-none">+</span>
                             )}
                           </div>
                         </div>
@@ -1084,9 +1092,9 @@ function SchedulePageContent() {
           </div>
         )}
 
-        {/* Week View Layout */}
+        {/* Week View Layout (Stacked Horizontally) */}
         {calendarView === "week" && (
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-2.5">
+          <div className="flex flex-col gap-3 space-y-1">
             {weekDays.map((day, idx) => {
               const daySchedules = getSchedulesForDate(day);
               const isToday = getLocalDateStr(day) === getLocalDateStr(new Date());
@@ -1097,36 +1105,49 @@ function SchedulePageContent() {
                     setCalendarDate(day);
                     setCalendarView("day");
                   }}
-                  className={`border border-gray-100 rounded-xl p-3 flex flex-row md:flex-col gap-3 md:gap-2 min-h-0 md:min-h-[320px] hover:bg-amber-50/20 transition cursor-pointer ${isToday ? "bg-amber-50/10 ring-2 ring-primary ring-inset" : "bg-white"
+                  className={`flex flex-col sm:flex-row items-stretch border border-slate-200/80 rounded-2xl bg-white hover:bg-slate-50/60 transition-all overflow-hidden shadow-2xs hover:shadow-md cursor-pointer ${isToday ? "ring-2 ring-amber-500/80 ring-inset bg-amber-50/10" : ""
                     }`}
                 >
-                  <div className="border-r md:border-r-0 md:border-b border-gray-100 pr-3 md:pr-0 md:pb-1.5 flex flex-col items-center justify-center shrink-0 min-w-[45px]">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      {day.toLocaleDateString("en-IN", { weekday: "short" })}
-                    </span>
-                    <span className={`text-sm md:text-base font-black mt-0.5 ${isToday ? "text-primary" : "text-gray-900"}`}>
-                      {day.getDate()}
+                  {/* Day & Date Badge Left Header */}
+                  <div className={`w-full sm:w-36 p-3.5 flex sm:flex-col items-center justify-between sm:justify-center shrink-0 border-b sm:border-b-0 sm:border-r border-slate-100 ${isToday ? "bg-amber-500/10 text-amber-900" : "bg-slate-50/60 text-slate-700"
+                    }`}>
+                    <div className="flex sm:flex-col items-center gap-1 sm:gap-0.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        {day.toLocaleDateString("en-IN", { weekday: "short" })}
+                      </span>
+                      <span className={`text-base sm:text-lg font-black leading-none ${isToday ? "text-amber-600" : "text-slate-900"}`}>
+                        {day.getDate()}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 sm:mt-1">
+                      {day.toLocaleDateString("en-IN", { month: "short" })}
                     </span>
                   </div>
 
-                  <div className="flex-1 flex flex-col gap-1.5 overflow-y-auto max-h-[260px] pr-0.5">
+                  {/* Events Horizontal Scroll Bar / Row */}
+                  <div className="flex-1 p-3 flex items-center gap-3 overflow-x-auto min-h-[64px]">
                     {daySchedules.length === 0 ? (
-                      <span className="text-[10px] text-gray-300 italic self-start md:self-auto md:text-center md:mt-4 font-semibold">Free</span>
+                      <span className="text-xs text-slate-400 italic font-medium px-2">No scheduled visits</span>
                     ) : (
                       daySchedules.map((s) => (
                         <div
                           key={s.id}
-                          className={`p-2 border rounded-lg text-[10px] font-bold text-gray-700 leading-snug space-y-1 ${s.priority === "HIGH"
-                            ? "bg-red-50 border-red-150"
-                            : s.priority === "LOW"
-                              ? "bg-gray-50 border-gray-150 text-gray-500"
-                              : "bg-amber-50 border-amber-150"
-                            }`}
+                          className="flex items-center gap-3 p-3 bg-amber-50/70 hover:bg-amber-100/70 border border-amber-200/60 rounded-xl shrink-0 min-w-[220px] max-w-[300px] transition-all shadow-2xs"
                         >
-                          <p className="line-clamp-2">{s.title}</p>
-                          <span className="text-[8px] text-gray-400 font-mono block">
-                            {new Date(s.startAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })}
-                          </span>
+                          <div className="flex flex-col shrink-0">
+                            <span className="text-[10px] font-mono font-extrabold text-amber-800 bg-white px-2 py-0.5 rounded-md border border-amber-200/80 shadow-2xs">
+                              {new Date(s.startAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <h5 className="text-xs font-bold text-slate-900 truncate">{s.title}</h5>
+                            {s.venue && (
+                              <p className="text-[10px] text-slate-500 truncate flex items-center gap-1 font-medium">
+                                <MapPin className="w-3 h-3 text-amber-600 shrink-0" />
+                                <span>{s.venue}</span>
+                              </p>
+                            )}
+                          </div>
                         </div>
                       ))
                     )}
@@ -1140,39 +1161,15 @@ function SchedulePageContent() {
         {/* Day Timeline View Layout */}
         {calendarView === "day" && (
           <div className="space-y-6">
-            {/* Google Maps Route optimization banner */}
-            {currentDaySchedules.length > 0 && (
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-gradient-to-r from-emerald-50 via-teal-50/30 to-emerald-50/40 border border-emerald-100 p-5 rounded-2xl shadow-xs">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-emerald-100 rounded-xl text-emerald-800 shrink-0">
-                    <MapIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-extrabold text-emerald-950 tracking-tight">Geographic Convoy Route Planning</h4>
-                    <p className="text-xs text-emerald-700 mt-1 font-medium leading-relaxed">Optimize driver navigation and sequence for today's {currentDaySchedules.length} scheduled visits.</p>
-                  </div>
-                </div>
-                <a
-                  href={getGoogleMapsRouteUrl(currentDaySchedules)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 whitespace-nowrap px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md focus:outline-none"
-                >
-                  <MapIcon className="w-3.5 h-3.5" />
-                  <span>Open Route Maps</span>
-                </a>
-              </div>
-            )}
-
             {currentDaySchedules.length === 0 ? (
-              <div className="text-center py-20 border border-dashed border-gray-250 rounded-2xl text-gray-400 text-xs font-sans bg-gray-50/30 font-semibold italic">
+              <div className="text-center py-20 border border-dashed border-slate-200/80 rounded-2xl text-slate-400 text-xs font-sans bg-slate-50/30 font-semibold italic">
                 No schedules mapped for this date.
               </div>
             ) : (
-              <div className="relative border-l-3 border-amber-100 pl-8 ml-4 space-y-8 py-2">
+              <div className="space-y-4 font-sans">
                 {currentDaySchedules.map((s, idx) => {
                   const sStart = new Date(s.startAt);
-                  const sEnd = new Date(s.endAt);
+                  const sEnd = new Date(s.endAt || s.startAt);
                   const nextS = currentDaySchedules[idx + 1];
 
                   let gapAlert = null;
@@ -1183,188 +1180,24 @@ function SchedulePageContent() {
 
                     if (diffMins < 0) {
                       gapAlert = (
-                        <div className="relative my-4 flex items-center gap-3">
-                          {/* Conflict indicator centered on timeline line */}
-                          <div className="absolute -left-[46px] top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-red-100 border border-red-300 text-red-600 animate-bounce shadow-sm z-10">
-                            <AlertCircle className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="inline-flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 px-3.5 py-1.5 rounded-xl text-[10px] font-extrabold shadow-2xs tracking-wide animate-pulse">
-                            <AlertCircle className="w-3.5 h-3.5 text-red-650" />
-                            <span>Timeline Conflict: Overlap of {Math.abs(diffMins)} minutes!</span>
-                          </div>
+                        <div className="my-3 flex items-center gap-2 bg-rose-50 border border-rose-200/80 text-rose-800 px-4 py-2.5 rounded-xl text-xs font-extrabold shadow-2xs">
+                          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>Timeline Conflict: Overlap of {Math.abs(diffMins)} minutes with next visit!</span>
                         </div>
                       );
                     } else if (diffMins > 0) {
                       gapAlert = (
-                        <div className="relative my-4 flex items-center gap-3">
-                          {/* Dashed connector indicator centered on timeline line */}
-                          <div className="absolute -left-[46px] top-1/2 -translate-y-1/2 flex flex-col gap-0.5 items-center w-6 justify-center z-10">
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
-                          </div>
-                          <div className="inline-flex items-center gap-1.5 bg-gray-50 border border-gray-150 text-gray-500 px-3.5 py-1.5 rounded-xl text-[10px] font-extrabold shadow-2xs tracking-wide">
-                            <Clock className="w-3.5 h-3.5 text-gray-400" />
-                            <span>Travel Gap: {diffMins} minutes</span>
-                          </div>
+                        <div className="my-3 flex items-center gap-2 bg-slate-100/80 border border-slate-200/80 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xs">
+                          <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span>Travel Gap: {diffMins} minutes before next visit</span>
                         </div>
                       );
                     }
                   }
 
-                  // Determine timeline dot style based on status
-                  let dotElement = (
-                    <div className="absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 border-gray-400 bg-white shadow-xs text-gray-500 z-10">
-                      <div className="w-2 h-2 rounded-full bg-gray-400" />
-                    </div>
-                  );
-
-                  if (s.status === "COMPLETED") {
-                    dotElement = (
-                      <div className="absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 border-emerald-500 bg-white shadow-[0_0_8px_rgba(16,185,129,0.25)] text-emerald-600 z-10">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      </div>
-                    );
-                  } else if (s.status === "CANCELLED") {
-                    dotElement = (
-                      <div className="absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 border-red-500 bg-white shadow-[0_0_8px_rgba(239,68,68,0.25)] text-red-600 z-10">
-                        <X className="w-3.5 h-3.5" />
-                      </div>
-                    );
-                  } else if (s.status === "IN_PROGRESS" || s.status === "TRAVELLING" || s.status === "ARRIVED") {
-                    const ringColor = s.status === "IN_PROGRESS" ? "border-sky-500" : s.status === "ARRIVED" ? "border-teal-500" : "border-blue-500";
-                    const pingColor = s.status === "IN_PROGRESS" ? "bg-sky-500" : s.status === "ARRIVED" ? "bg-teal-500" : "bg-blue-500";
-                    dotElement = (
-                      <div className={`absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 ${ringColor} bg-white shadow-[0_0_8px_rgba(59,130,246,0.3)] z-10`}>
-                        <span className="relative flex h-2.5 w-2.5">
-                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${pingColor} opacity-75`}></span>
-                          <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${pingColor}`}></span>
-                        </span>
-                      </div>
-                    );
-                  } else if (s.status === "CONFIRMED") {
-                    dotElement = (
-                      <div className="absolute -left-[46px] top-2 flex items-center justify-center w-6 h-6 rounded-full border-2 border-amber-500 bg-white shadow-xs text-amber-600 z-10">
-                        <Circle className="w-2 h-2 fill-amber-500 text-amber-500" />
-                      </div>
-                    );
-                  }
-
                   return (
-                    <div key={s.id} className="relative">
-                      {dotElement}
-
-                      <div className={`bg-white hover:bg-slate-50/50 border border-gray-150 border-l-4 ${getStatusBorderColor(s.status)} rounded-2xl p-5 max-w-2xl transition-all duration-300 hover:shadow-md transform hover:-translate-y-0.5`}>
-                        <div className="flex justify-between items-start gap-4 flex-wrap sm:flex-nowrap">
-                          <div className="space-y-1.5 flex-1 min-w-[200px]">
-                            {/* Time range, category & priority header */}
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-150 text-gray-600 px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-2xs font-mono">
-                                <Clock className="w-3.5 h-3.5 text-gray-400" />
-                                {sStart.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })} - {sEnd.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}
-                              </span>
-                              {s.priority && (
-                                <span className={`text-[9px] font-extrabold px-2 py-1 rounded-lg border uppercase tracking-wider ${s.priority === "HIGH"
-                                  ? "bg-red-50 text-red-700 border-red-150 shadow-2xs"
-                                  : s.priority === "LOW"
-                                    ? "bg-gray-50 text-gray-500 border-gray-150 shadow-2xs"
-                                    : "bg-amber-50 text-amber-800 border-amber-150 shadow-2xs"
-                                  }`}>
-                                  {s.priority} Priority
-                                </span>
-                              )}
-                              {s.category && (
-                                <span className="text-[9px] font-extrabold px-2 py-1 rounded-lg border bg-gray-50 text-gray-600 border-gray-150 uppercase tracking-wider shadow-2xs">
-                                  {s.category}
-                                </span>
-                              )}
-                            </div>
-                            
-                            <h3 className="text-base font-extrabold text-gray-900 leading-snug tracking-tight mt-2.5">{s.title}</h3>
-                            
-                            <p className="text-xs text-gray-500 mt-2 flex items-start gap-1.5 font-medium leading-normal">
-                              <MapPin className="w-4 h-4 shrink-0 text-primary mt-0.5" />
-                              <span className="break-words">{s.venue}</span>
-                              {s.googleMapsLink && (
-                                <a
-                                  href={s.googleMapsLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:text-amber-700 transition shrink-0 self-center"
-                                  title="Navigate on Google Maps"
-                                >
-                                  <MapIcon className="w-3.5 h-3.5 text-primary inline ml-1 hover:scale-110 transform transition" />
-                                </a>
-                              )}
-                            </p>
-                          </div>
-                          <span className={`text-[10px] px-2.5 py-1 border rounded-full uppercase font-black tracking-wider shrink-0 shadow-2xs ${getStatusColor(s.status)}`}>
-                            {s.status.replace("_", " ")}
-                          </span>
-                        </div>
-
-                        {s.description && (
-                          <p className="text-xs text-gray-600 bg-gray-50/70 border-l border-primary/30 pl-3 py-2 mt-4 rounded-r-xl font-normal leading-relaxed">
-                            {s.description}
-                          </p>
-                        )}
-
-                        {/* Contacts — clean inline list */}
-                        {s.contacts && s.contacts.length > 0 && (
-                          <div className="mt-3.5 pt-3.5 border-t border-gray-100">
-                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2 block">Contacts</span>
-                            <div className="space-y-1.5">
-                              {s.contacts.map((contact) => (
-                                <div key={contact.id} className="flex items-center justify-between gap-2">
-                                  <div className="min-w-0 flex-1">
-                                    <span className="text-xs font-semibold text-gray-800">{contact.name}</span>
-                                    {contact.designation && (
-                                      <span className="text-[10px] text-gray-400 ml-1.5 font-medium">· {contact.designation}</span>
-                                    )}
-                                  </div>
-                                  {contact.phone && (
-                                    <div className="flex items-center gap-1 shrink-0">
-                                      <a
-                                        href={`tel:${contact.phone}`}
-                                        className="p-1.5 text-gray-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition"
-                                        title={`Call ${contact.name}`}
-                                      >
-                                        <Phone className="w-3.5 h-3.5" />
-                                      </a>
-                                      <a
-                                        href={`https://wa.me/${contact.phone.replace(/[^0-9]/g, "")}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="p-1.5 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
-                                        title={`WhatsApp ${contact.name}`}
-                                      >
-                                        <WhatsAppIcon className="w-3.5 h-3.5" />
-                                      </a>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="mt-4.5 pt-3.5 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-500 font-medium">
-                          {/* Assigned Staff commented out for future use
-                          <span>Assigned Staff: {s.assignments && s.assignments.length > 0 ? s.assignments.map(a => a.user.name).join(", ") : "None"}</span>
-                          */}
-                          <span />
-                          {canEdit && (
-                            <button
-                              onClick={() => { setEditScheduleId(s.id); setShowAddModal(true); }}
-                              className="flex items-center gap-1 text-primary hover:text-amber-700 font-bold hover:underline focus:outline-none cursor-pointer text-xs transition"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                              <span>Manage Visit</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
+                    <div key={s.id} className="space-y-3">
+                      <ScheduleCard schedule={s} />
                       {gapAlert}
                     </div>
                   );
@@ -1575,7 +1408,7 @@ function SchedulePageContent() {
               </Link>
             )}
 
-            {/* Edit Button */}
+            {/* Edit / Manage Button */}
             {!isReadOnlyViewer && canEdit && (
               <button
                 onClick={() => {
@@ -1584,15 +1417,15 @@ function SchedulePageContent() {
                   setEditScheduleId(schedule.id);
                   setShowAddModal(true);
                 }}
-                className="flex flex-col items-center justify-center bg-amber-500 hover:bg-amber-600 text-white w-[60px] transition active:opacity-85"
-                title="Edit"
+                className="flex flex-col items-center justify-center bg-amber-500 hover:bg-amber-600 text-white w-[65px] transition active:opacity-85"
+                title="Manage Visit"
               >
                 <Edit3 className="w-4 h-4" />
-                <span className="text-[8px] font-bold mt-1">Edit</span>
+                <span className="text-[9px] font-extrabold mt-1">Manage</span>
               </button>
             )}
 
-            {/* Delete Button */}
+            {/* Red Delete Button under Swipe */}
             {!isReadOnlyViewer && canDelete && (
               <button
                 onClick={() => {
@@ -1600,11 +1433,11 @@ function SchedulePageContent() {
                   setIsSwiped(false);
                   setDeleteConfirmId(schedule.id);
                 }}
-                className="flex flex-col items-center justify-center bg-red-650 hover:bg-red-700 text-white w-[60px] transition active:opacity-85"
+                className="flex flex-col items-center justify-center bg-red-600 hover:bg-red-700 text-white w-[65px] transition active:opacity-85"
                 title="Delete"
               >
                 <Trash className="w-4 h-4" />
-                <span className="text-[8px] font-bold mt-1">Delete</span>
+                <span className="text-[9px] font-extrabold mt-1">Delete</span>
               </button>
             )}
           </div>
@@ -2032,60 +1865,55 @@ function SchedulePageContent() {
           </div>
         )}
 
-        {/* Header and Controls */}
-        <div className="flex flex-col gap-4 mb-5 font-sans">
-          {/* Title & Primary Add Button */}
-          <div className="flex justify-between items-center gap-3">
-            <div>
-              <h1 className="text-xs sm:text-sm font-extrabold text-gray-900 leading-tight uppercase tracking-wider">
-                Honourable MP Shri Bhashyam Rama Krishna Tour Schedule
-              </h1>
-            </div>
-            {canEdit && (
-              <button
-                onClick={() => { setEditScheduleId(null); setShowAddModal(true); }}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-amber-700 text-white font-bold rounded-xl shadow-sm transition text-xs cursor-pointer focus:outline-none shrink-0"
-              >
-                <span>+ Add New</span>
-              </button>
-            )}
-          </div>
+        {/* Modern Page Title & Executive Equal Full-Width Action Toolbar Header */}
+        <div className="flex flex-col gap-4 mb-6 font-sans">
+          <div className="flex flex-col gap-4 bg-white/80 backdrop-blur-xs p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+            {/* Full-width equally divided action grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full pt-1">
+              {/* Calendar vs List Segmented Pill (Full Width 1/3) */}
+              <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/80 flex items-center shadow-2xs w-full">
+                <button
+                  onClick={() => setViewMode("calendar")}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${viewMode === "calendar" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
+                    }`}
+                >
+                  Calendar
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${viewMode === "list" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
+                    }`}
+                >
+                  List
+                </button>
+              </div>
 
-          {/* View Selection & Compilation Tools */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Calendar vs List Toggle */}
-            <div className="flex-1 min-w-[150px] bg-gray-150 p-0.5 rounded-xl border border-gray-200 flex items-center shadow-xs">
-              <button
-                onClick={() => setViewMode("calendar")}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer text-center ${viewMode === "calendar" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
-                  }`}
-              >
-                Calendar
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer text-center ${viewMode === "list" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
-                  }`}
-              >
-                List
-              </button>
-            </div>
+              {/* Share Daily Action (Full Width 1/3) */}
+              {(isAdmin || userRoles.includes("Super Admin") || userRoles.includes("MP Office Admin") || userRoles.includes("Schedule Coordinator")) && (
+                <button
+                  onClick={() => {
+                    setShareMessage(compileDailySchedule(shareDate));
+                    setShowShareModal(true);
+                  }}
+                  className="flex-1 w-full flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-800 font-bold rounded-xl shadow-2xs transition-all text-xs cursor-pointer focus:outline-none"
+                  title="Share daily compiled schedules on WhatsApp"
+                >
+                  <WhatsAppIcon className="w-4 h-4 text-emerald-600" />
+                  <span>Share Daily</span>
+                </button>
+              )}
 
-            {/* Share Daily Compilation */}
-            {(isAdmin || userRoles.includes("Super Admin") || userRoles.includes("MP Office Admin") || userRoles.includes("Schedule Coordinator")) && (
-              <button
-                onClick={() => {
-                  setShareMessage(compileDailySchedule(shareDate));
-                  setShowShareModal(true);
-                }}
-                className="flex items-center justify-center gap-1.5 px-4.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-xl shadow-sm transition text-xs cursor-pointer focus:outline-none"
-                title="Share daily compiled schedules on WhatsApp"
-              >
-                <WhatsAppIcon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Share Daily</span>
-                <span className="sm:hidden">Share</span>
-              </button>
-            )}
+              {/* Primary Add Visit Button (Full Width 1/3) */}
+              {canEdit && (
+                <button
+                  onClick={() => { setEditScheduleId(null); setShowAddModal(true); }}
+                  className="flex-1 w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-xl shadow-sm shadow-amber-500/20 transition-all text-xs cursor-pointer focus:outline-none shrink-0 transform hover:-translate-y-0.5 active:translate-y-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Visit</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

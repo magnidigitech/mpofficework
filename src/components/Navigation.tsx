@@ -276,22 +276,27 @@ export function Navigation() {
       )}
 
       {/* Desktop Sidebar Navigation (Visible only on desktop md+) */}
-      <aside className="fixed top-0 bottom-0 left-0 z-40 hidden w-64 bg-white border-r border-gray-200 md:flex md:flex-col">
+      <aside className="fixed top-0 bottom-0 left-0 z-40 hidden w-64 bg-white border-r border-slate-200/80 md:flex md:flex-col shadow-xs">
         {/* Header Logo Area */}
-        <div className="flex items-center gap-3 px-6 h-16 border-b border-gray-200 bg-gray-50">
-          <svg className="w-8 h-8 text-primary" viewBox="0 0 512 512" fill="currentColor">
-            <path d="M256 130 L150 195 L362 195 Z" />
-            <rect x="165" y="195" width="182" height="15" />
-            <rect x="177" y="218" width="18" height="110" />
-            <rect x="247" y="218" width="18" height="110" />
-            <rect x="317" y="218" width="18" height="110" />
-            <rect x="165" y="328" width="182" height="15" />
-          </svg>
-          <span className="font-bold text-gray-900 tracking-tight">MP Office Portal</span>
+        <div className="flex items-center gap-3 px-6 h-20 border-b border-slate-200/80 bg-slate-50/50">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white shadow-xs font-bold shrink-0">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 21h18" />
+              <path d="M6 18v-7" />
+              <path d="M10 18v-7" />
+              <path d="M14 18v-7" />
+              <path d="M18 18v-7" />
+              <path d="M12 3L2 9h20L12 3z" />
+            </svg>
+          </div>
+          <div className="flex flex-col">
+            <span className="font-extrabold text-slate-900 text-sm tracking-tight leading-none">MP Office</span>
+            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mt-1">Management Portal</span>
+          </div>
         </div>
 
         {/* Sidebar Nav Items */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5">
+        <nav className="flex-1 px-3.5 py-6 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -299,13 +304,13 @@ export function Navigation() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3.5 px-4 py-3 text-sm font-medium rounded-lg transition ${
+                className={`flex items-center gap-3.5 px-3.5 py-3 text-xs font-bold rounded-xl transition-all duration-200 ${
                   isActive
-                    ? "bg-amber-50 text-primary"
-                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-amber-500/10 text-amber-800 shadow-2xs border-l-3 border-amber-500"
+                    : "text-slate-600 hover:bg-slate-100/70 hover:text-slate-900"
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-gray-400"}`} />
+                <Icon className={`w-4.5 h-4.5 ${isActive ? "text-amber-600" : "text-slate-400"}`} />
                 <span>{item.name}</span>
               </Link>
             );
@@ -313,22 +318,22 @@ export function Navigation() {
         </nav>
 
         {/* Logout/Login Button */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
+        <div className="p-4 border-t border-slate-200/80 bg-slate-50/50">
           {isLoggedIn ? (
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="flex items-center gap-3.5 w-full px-4 py-3 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 hover:text-red-700 transition cursor-pointer"
+              className="flex items-center gap-3.5 w-full px-3.5 py-2.5 text-xs font-bold text-rose-600 rounded-xl hover:bg-rose-50/80 hover:text-rose-700 transition cursor-pointer"
             >
-              <LogOut className="w-5 h-5 text-red-500" />
+              <LogOut className="w-4 h-4 text-rose-500" />
               <span>Sign Out</span>
             </button>
           ) : (
             <Link
               href="/login"
-              className="flex items-center gap-3.5 w-full px-4 py-3 text-sm font-medium text-primary rounded-lg hover:bg-amber-50 hover:text-primary-dark transition cursor-pointer"
+              className="flex items-center gap-3.5 w-full px-3.5 py-2.5 text-xs font-bold text-amber-700 bg-amber-50 rounded-xl hover:bg-amber-100/80 transition cursor-pointer"
             >
-              <User className="w-5 h-5 text-primary" />
-              <span>Login</span>
+              <User className="w-4 h-4 text-amber-600" />
+              <span>Sign In</span>
             </Link>
           )}
         </div>
